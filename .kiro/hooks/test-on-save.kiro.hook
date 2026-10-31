@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "name": "Run tests on save",
+  "description": "Runs the test suite when a source or test file is saved",
+  "version": "1",
+  "when": { "type": "fileEdited", "patterns": ["src/**/*.js", "tests/**/*.js"] },
+  "then": { "type": "askAgent", "prompt": "Run `node --test tests/*.test.js` and fix any failing test caused by the latest change." }
+}

@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "name": "Review UI copy",
+  "description": "Checks UI text matches the product tone in steering",
+  "version": "1",
+  "when": { "type": "fileEdited", "patterns": ["src/index.html"] },
+  "then": { "type": "askAgent", "prompt": "Review user-facing text in src/index.html against .kiro/steering/product.md tone. Suggest edits only if off-tone." }
+}
