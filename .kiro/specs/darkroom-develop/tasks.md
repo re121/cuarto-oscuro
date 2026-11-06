@@ -55,3 +55,15 @@ All tasks are implemented in `src/index.html`.
 
 ## Privacy
 - [x] No network requests; `FileReader` stays local; no external analytics (REQ 3)
+
+## Split-grade printing
+- [x] Add `splitGrade` boolean, `softTime` and `hardTime` variables to state (REQ 27, REQ 28)
+- [x] Add split-grade toggle button (`#splitToggle`, `aria-pressed`) and split-grade slider panel to HTML (REQ 27, REQ 28)
+- [x] Wire toggle: show/hide grade-slider div vs split-grade div; update `splitGrade` flag (REQ 27, REQ 28)
+- [x] Wire `#softTime` and `#hardTime` range inputs to variables; refresh preview on change (REQ 32)
+- [x] Implement `curveSoft` and `curveHard` fixed-grade helpers (grade 00 / grade 5) (REQ 31)
+- [x] Update `drawPreview()` to use combined density model when `splitGrade` is true (REQ 32)
+- [x] Update `develop()` to use combined density formula when `splitGrade` is true (REQ 31)
+- [x] Update `expose()` to run soft phase (yellow tint) then hard phase (magenta tint) in sequence when `splitGrade` is true; play click between phases; skip zero-duration phases (REQ 29, REQ 30)
+- [x] Show zero-time warning in status when both softTime and hardTime are 0 (REQ 33)
+- [x] Verify all existing features unaffected when `splitGrade` is false (REQ 34)

@@ -15,6 +15,14 @@ spec-driven side of the project:
 - **Hooks** — `.kiro/hooks/` contains a test-on-save hook and a UI-copy review hook
   from the initial scaffold.
 
-## Next steps with Kiro
-Remaining tasks in `tasks.md` (for example, a split-grade printing mode) are to be
-implemented through Kiro CLI against these specs.
+## Feature built with Kiro: split-grade printing
+Split-grade printing (two exposures: soft/yellow filter for highlights, hard/magenta
+filter for shadows) was built end-to-end with Kiro CLI using spec-driven development:
+1. Kiro added the new EARS requirements to `requirements.md`.
+2. Kiro wrote the "Split-grade" section of `design.md` (combined soft-curve and
+   hard-curve exposure model).
+3. Kiro added the linked tasks to `tasks.md`.
+4. Kiro implemented the feature in `src/index.html` (toggle, two time sliders,
+   combined preview and develop, two-phase timer showing the active filter) and
+   checked the tasks off.
+The feature was then tested by hand in the browser (both modes, no console errors).

@@ -49,3 +49,13 @@
 ## Workflow state machine
 25. THE SYSTEM SHALL enforce a linear workflow: compose → (expose) → latent → (develop) → developing → devdone → (fix) → fixed; buttons not applicable to the current state SHALL be disabled.
 26. WHEN the user clicks "Nueva copia", THE SYSTEM SHALL reset to compose state, restoring the mask and preview without reloading the image.
+
+## Split-grade printing
+27. WHEN the user activates the Split-grade toggle, THE SYSTEM SHALL hide the single grade slider and reveal two independent time sliders — one for the soft exposure (grade 00, yellow filter, 0–20 s) and one for the hard exposure (grade 5, magenta filter, 0–20 s).
+28. WHEN the user deactivates the Split-grade toggle, THE SYSTEM SHALL hide the two split-grade sliders and restore the single grade slider, reverting to the standard single-exposure model.
+29. WHEN split-grade mode is active and the user clicks Expose, THE SYSTEM SHALL run two sequential exposures: first the soft exposure for the configured soft time (yellow safelight tint on canvas), then the hard exposure for the configured hard time (magenta tint), each announced in the timer display with the active filter colour.
+30. WHEN either split-grade phase reaches zero, THE SYSTEM SHALL play the enlarger click sound and transition automatically to the next phase; after the hard phase ends it SHALL transition to the latent state.
+31. WHEN split-grade mode is active, THE SYSTEM SHALL compute the final pixel density as the combination of a soft-curve exposure (grade 00, k=0.80) and a hard-curve exposure (grade 5, k=2.20), each weighted by its own normalised time (seconds ÷ 9), using the formula: final(p) = pow(curveSoft(raw[p]), eNsoft × mask[p]) × pow(curveHard(raw[p]), eNhard × mask[p]).
+32. WHEN split-grade mode is active, THE SYSTEM SHALL update the compose preview in real time as either time slider changes, reflecting the combined density model.
+33. WHEN split-grade mode is active and both soft time and hard time are 0, THE SYSTEM SHALL display a warning hint that the exposure time is zero.
+34. THE SYSTEM SHALL preserve all existing features (dodge/burn, toning, grain, safelight, sound, export, state machine) unchanged regardless of whether split-grade mode is on or off.

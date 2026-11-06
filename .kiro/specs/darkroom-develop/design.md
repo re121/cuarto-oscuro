@@ -93,3 +93,58 @@ devdone  →[Fix]→     fixed
 developing →[Fix]→   fixed          (early fix / stop bath)
 fixed    →[Reset]→   compose
 ```
+
+## Split-grade printing
+
+Split-grade is a real darkroom technique: the print receives two separate enlarger exposures on variable-contrast (VC) paper — one through a soft (yellow) filter at grade 00, which controls highlight density with minimal shadow impact, and one through a hard (magenta) filter at grade 5, which builds shadow density with minimal highlight impact. The combined result gives the printer independent control over both tonal extremes.
+
+### Data model additions
+
+```
+splitGrade : boolean          // false = standard single-grade mode (default)
+softTime   : number (0–20 s)  // exposure through yellow / grade-00 filter
+hardTime   : number (0–20 s)  // exposure through magenta / grade-5 filter
+```
+
+When `splitGrade` is false all three new variables are ignored; `grade` and `exposure` govern as before.
+
+### Curves
+
+```
+curveSoft(v) = clamp((v − 0.5) × 0.80 + 0.5, 0, 1)   // grade 00: k = 0.80
+curveHard(v) = clamp((v − 0.5) × 2.20 + 0.5, 0, 1)   // grade  5: k = 2.20
+```
+
+These are fixed grades (not user-adjustable) matching the extreme ends of the VC paper scale.
+
+### Combined density model
+
+```
+eNsoft = softTime / 9
+eNhard = hardTime / 9
+final(p) = pow(curveSoft(raw[p]), eNsoft × mask[p])
+         × pow(curveHard(raw[p]), eNhard × mask[p])
+```
+
+The multiplication of two power-law terms is equivalent to adding the log-densities from each filter stage — matching the chemistry of sequential exposures on VC paper. When `eNsoft = 0` the soft term equals 1 (no effect); when `eNhard = 0` the hard term equals 1. The combined result is clamped to [0, 1] before rendering.
+
+### Expose sequence
+
+1. Fill canvas paper-white; play click.
+2. **Soft phase** (duration = `softTime` s): canvas tinted yellow (`rgba(255,210,0,.18)`); timer shows `"Amarillo · Ns"`.
+3. On soft-phase end: play click; clear tint.
+4. **Hard phase** (duration = `hardTime` s): canvas tinted magenta (`rgba(200,0,180,.14)`); timer shows `"Magenta · Ns"`.
+5. On hard-phase end: play click; transition to `latent`.
+
+If either time is 0 its phase is skipped silently. If both are 0 the Expose button remains active but the expose function warns via the status line.
+
+### Preview
+
+`drawPreview()` branches on `splitGrade`: when true it uses the combined density formula above, scaled to the preview brightness range. The compose preview updates live as either slider changes.
+
+### UI
+
+- A toggle button (`.btn`, `aria-pressed`) labelled **"Gradación dividida"** placed immediately below the grade slider row.
+- When pressed: hide the grade-slider `<div>` (`display:none`), show the split-grade `<div>` containing the two range inputs (`id="softTime"` / `id="hardTime"`).
+- When released: reverse. Grade slider and standard model are restored.
+- Labels: **"Suave (amarillo) · N s"** and **"Duro (magenta) · N s"** following the existing label style.

@@ -62,6 +62,12 @@ body.lit .rail{background:#efe7df;border-color:#cbbdb2}
 body.lit .tray{background:linear-gradient(160deg,#cdbfb4,#b6a699);border-color:#a8988c}
 body.lit .status,body.lit .loadbtn{color:#7a2016}
 body.lit .tagline,body.lit label,body.lit .hint,body.lit .step,body.lit .lab,body.lit .switch{color:#6b5a50}
+.sg-panel{display:none}
+.sg-panel.active{display:block}
+.grade-panel.hidden{display:none}
+.timer-yellow{color:#d4a017}
+.timer-magenta{color:#c050b8}
+.btn.sg-active{border-color:#c9a24a;color:#c9a24a;background:rgba(201,162,74,.14)}
 </style>
 
 <div class="wrap">
@@ -89,9 +95,16 @@ body.lit .tagline,body.lit label,body.lit .hint,body.lit .step,body.lit .lab,bod
         <label>Exposición · <span id="expVal">9</span> s</label>
         <input type="range" id="exposure" min="2" max="20" value="9" step="1">
       </div>
-      <div>
+      <div class="grade-panel" id="gradePanel">
         <label>Contraste (grado) · <span id="conVal">3</span></label>
         <input type="range" id="contrast" min="1" max="5" value="3" step="1">
+      </div>
+      <button class="btn" id="splitToggle" aria-pressed="false" style="margin-top:-4px">Gradación dividida</button>
+      <div class="sg-panel" id="sgPanel">
+        <label>Suave (amarillo) · <span id="softVal">5</span> s</label>
+        <input type="range" id="softTime" min="0" max="20" value="5" step="1">
+        <label style="margin-top:8px">Duro (magenta) · <span id="hardVal">4</span> s</label>
+        <input type="range" id="hardTime" min="0" max="20" value="4" step="1">
       </div>
       <div>
         <label>Pincel sobre la copia</label>
@@ -139,8 +152,12 @@ const paper=$('#paper'), ctx=paper.getContext('2d');
 let W=paper.width,H=paper.height;
 let rawGray=null, mask=null;
 let state='compose', tool='none', brush=60, exposure=9, grade=3, grainAmt=14, toner='neutral';
+let splitGrade=false, softTime=5, hardTime=4;
 
-function curve(v){ const k=0.8+(grade-1)*0.35; return Math.min(1,Math.max(0,(v-0.5)*k+0.5)); }
+function curveK(v,k){ return Math.min(1,Math.max(0,(v-0.5)*k+0.5)); }
+function curve(v){ return curveK(v, 0.8+(grade-1)*0.35); }
+function curveSoft(v){ return curveK(v, 0.80); }  // grade 00
+function curveHard(v){ return curveK(v, 2.20); }  // grade 5
 
 function loadImage(src){
   const img=new Image();
@@ -158,7 +175,17 @@ function loadImage(src){
 }
 function drawPreview(){
   const im=ctx.createImageData(W,H);
-  for(let p=0,i=0;p<W*H;p++,i+=4){const v=Math.round(255*(0.14+0.10*curve(rawGray[p])));im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255;}
+  for(let p=0,i=0;p<W*H;p++,i+=4){
+    let v;
+    if(splitGrade){
+      const eNs=softTime/9, eNh=hardTime/9;
+      const combined=Math.pow(curveSoft(rawGray[p]),Math.max(0.001,eNs))*Math.pow(curveHard(rawGray[p]),Math.max(0.001,eNh));
+      v=Math.round(255*(0.14+0.10*Math.min(1,combined)));
+    } else {
+      v=Math.round(255*(0.14+0.10*curve(rawGray[p])));
+    }
+    im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255;
+  }
   ctx.putImageData(im,0,0); drawMaskOverlay();
 }
 function drawMaskOverlay(){
@@ -191,16 +218,51 @@ function setStep(){
   $('#fix').disabled=!(state==='developing'||state==='devdone'); $('#download').disabled=state!=='fixed';
 }
 function expose(){
-  if(state!=='compose'||!rawGray)return; state='exposing';setStep();$('#expose').disabled=true;ensureAudio();clack();
-  ctx.fillStyle='#efe9e2';ctx.fillRect(0,0,W,H);let t=exposure,tmr=$('#timer');$('#status').textContent='Exponiendo bajo la ampliadora…';
-  const iv=setInterval(()=>{tmr.textContent=t+'s';if(t>0)tick();t--;if(t<0){clearInterval(iv);tmr.textContent='';clack();
-    ctx.fillStyle='#ece6df';ctx.fillRect(0,0,W,H);state='latent';setStep();}},120);
+  if(state!=='compose'||!rawGray)return;
+  if(splitGrade&&softTime===0&&hardTime===0){$('#status').textContent='Tiempo de exposición cero. Ajusta los tiempos.';return;}
+  state='exposing';setStep();$('#expose').disabled=true;ensureAudio();clack();
+  ctx.fillStyle='#efe9e2';ctx.fillRect(0,0,W,H);
+  const tmr=$('#timer');
+  if(splitGrade){
+    const runPhase=(dur,label,tintColor,onDone)=>{
+      if(dur===0){onDone();return;}
+      ctx.fillStyle='#efe9e2';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle=tintColor;ctx.fillRect(0,0,W,H);
+      $('#status').textContent='Exponiendo filtro '+label+'…';
+      let t=dur;
+      const iv=setInterval(()=>{
+        tmr.className='timer '+(label==='amarillo'?'timer-yellow':'timer-magenta');
+        tmr.textContent=(label==='amarillo'?'Amarillo':'Magenta')+' · '+t+'s';
+        if(t>0)tick();t--;
+        if(t<0){clearInterval(iv);tmr.className='timer';tmr.textContent='';clack();
+          ctx.fillStyle='#ece6df';ctx.fillRect(0,0,W,H);onDone();}
+      },120);
+    };
+    runPhase(softTime,'amarillo','rgba(255,210,0,.18)',()=>{
+      runPhase(hardTime,'magenta','rgba(200,0,180,.14)',()=>{
+        state='latent';setStep();
+      });
+    });
+  } else {
+    let t=exposure;$('#status').textContent='Exponiendo bajo la ampliadora…';
+    const iv=setInterval(()=>{tmr.textContent=t+'s';if(t>0)tick();t--;if(t<0){clearInterval(iv);tmr.textContent='';clack();
+      ctx.fillStyle='#ece6df';ctx.fillRect(0,0,W,H);state='latent';setStep();}},120);
+  }
 }
 let finalArr=null;
 function develop(){
   if(state!=='latent')return; state='developing';setStep();$('#tray').classList.add('wet');ensureAudio();waterStart();
   const eN=exposure/9; finalArr=new Float32Array(W*H); const order=new Float32Array(W*H);
-  for(let p=0;p<W*H;p++){const e=eN*mask[p];const out=Math.pow(curve(rawGray[p]),e);finalArr[p]=out;order[p]=out;}
+  if(splitGrade){
+    const eNs=softTime/9, eNh=hardTime/9;
+    for(let p=0;p<W*H;p++){
+      const e=eNs*mask[p], eh=eNh*mask[p];
+      const out=Math.min(1,Math.pow(curveSoft(rawGray[p]),Math.max(0.001,e))*Math.pow(curveHard(rawGray[p]),Math.max(0.001,eh)));
+      finalArr[p]=out;order[p]=out;
+    }
+  } else {
+    for(let p=0;p<W*H;p++){const e=eN*mask[p];const out=Math.pow(curve(rawGray[p]),e);finalArr[p]=out;order[p]=out;}
+  }
   let start=null,dur=7000;
   function frame(ts){ if(!start)start=ts;let t=(ts-start)/dur;if(t>1)t=1;
     const im=ctx.createImageData(W,H),d=im.data;
@@ -208,8 +270,15 @@ function develop(){
       const v=Math.round(255*(1-(1-finalArr[p])*pr));d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}
     ctx.putImageData(im,0,0);
     if(t<1)requestAnimationFrame(frame);
-    else{state='devdone';applyGrain();waterStop();setStep();
-      $('#status').textContent=eN<0.8?'Clara: subexpuesta.':eN>1.25?'Densa: sobreexpuesta.':'Buenos negros, buenas luces.';}
+    else{
+      state='devdone';applyGrain();waterStop();setStep();
+      if(splitGrade){
+        const total=(softTime+hardTime)/9;
+        $('#status').textContent=total<0.8?'Clara: subexpuesta.':total>1.25?'Densa: sobreexpuesta.':'Buenos negros, buenas luces.';
+      } else {
+        $('#status').textContent=eN<0.8?'Clara: subexpuesta.':eN>1.25?'Densa: sobreexpuesta.':'Buenos negros, buenas luces.';
+      }
+    }
   }
   requestAnimationFrame(frame);
 }
@@ -234,6 +303,16 @@ function download(){ try{ paper.toBlob(b=>{ if(!b)return; const a=document.creat
 
 $('#exposure').addEventListener('input',e=>{exposure=+e.target.value;$('#expVal').textContent=exposure;});
 $('#contrast').addEventListener('input',e=>{grade=+e.target.value;$('#conVal').textContent=grade;if(state==='compose'&&rawGray)drawPreview();});
+$('#softTime').addEventListener('input',e=>{softTime=+e.target.value;$('#softVal').textContent=softTime;if(state==='compose'&&rawGray)drawPreview();});
+$('#hardTime').addEventListener('input',e=>{hardTime=+e.target.value;$('#hardVal').textContent=hardTime;if(state==='compose'&&rawGray)drawPreview();});
+$('#splitToggle').addEventListener('click',()=>{
+  splitGrade=!splitGrade;
+  $('#splitToggle').setAttribute('aria-pressed',splitGrade);
+  $('#splitToggle').classList.toggle('sg-active',splitGrade);
+  $('#gradePanel').classList.toggle('hidden',splitGrade);
+  $('#sgPanel').classList.toggle('active',splitGrade);
+  if(state==='compose'&&rawGray)drawPreview();
+});
 $('#brush').addEventListener('input',e=>brush=+e.target.value);
 $('#grain').addEventListener('input',e=>{grainAmt=+e.target.value;$('#grVal').textContent=grainAmt<6?'fino':grainAmt<20?'medio':'grueso';});
 function setTool(t){tool=t;$('#tDodge').setAttribute('aria-pressed',t==='dodge');$('#tBurn').setAttribute('aria-pressed',t==='burn');$('#tNone').setAttribute('aria-pressed',t==='none');}
