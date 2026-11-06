@@ -1,44 +1,20 @@
 # How Kiro was used — Cuarto Oscuro
 
-## Spec-driven development
+## Honest summary
+The app prototype (`src/index.html`) was built with an AI assistant outside Kiro.
+Kiro (Kiro CLI 3.0, on macOS 12, where the Kiro IDE does not run) was used for the
+spec-driven side of the project:
 
-The darkroom workflow was specified before a line of code was written:
+- **Specs** — `.kiro/specs/darkroom-develop/`: Kiro CLI read the implemented app and
+  rewrote `requirements.md` (EARS format), `design.md` (tone model and rendering
+  pipeline) and `tasks.md` (checklist linked to requirements) so the specs match
+  what was actually built. An earlier contact-sheet spec for a feature that was
+  never built was removed.
+- **Steering** — `.kiro/steering/structure.md` and `tech.md` were updated by Kiro to
+  describe the real single-file architecture (Canvas 2D + Web Audio, no build, no server).
+- **Hooks** — `.kiro/hooks/` contains a test-on-save hook and a UI-copy review hook
+  from the initial scaffold.
 
-- `.kiro/specs/darkroom-develop/requirements.md` — 26 EARS-format requirements covering load, expose, develop, fix, tone, grain, safelight, sound, and export.
-- `.kiro/specs/darkroom-develop/design.md` — concrete formulas for the tone curve, exposure model, shadows-first animation, dodge/burn brush, and audio approach.
-- `.kiro/specs/darkroom-develop/tasks.md` — implementation checklist linked back to requirements, used to track progress during the jam.
-
-A contact-sheet feature was specced early (`.kiro/specs/contact-sheet/`) but was cut — the single-HTML constraint made it impractical within the jam window.
-
-## Steering
-
-Three steering files kept Kiro's suggestions on-brand throughout:
-
-- `steering/product.md` — audience, tone, privacy constraint (no uploads).
-- `steering/structure.md` — single-file architecture; no build step; function naming conventions.
-- `steering/tech.md` — Canvas 2D + Web Audio only; no framework; accessibility requirements.
-
-These were referenced implicitly on every code-generation prompt, preventing Kiro from suggesting React, bundlers, or server calls.
-
-## Hooks
-
-- `hooks/test-on-save.kiro.hook` — originally intended to run the Node test-runner stub on save. The test harness was later dropped (the inline script made module isolation awkward), but the hook stayed as a reminder.
-- `hooks/ui-copy-review.kiro.hook` — reviewed the Spanish-language UI strings for tone and consistency with the darkroom aesthetic.
-
-## Code generation
-
-Kiro generated the initial implementation of:
-
-- The `curve()` / `develop()` / `applyGrain()` / `applyTone()` pipeline from the formulas in `design.md`.
-- The `requestAnimationFrame` animation loop with the shadows-first progress formula.
-- The Web Audio graph (oscillators for click/tick, pink-noise buffer for water agitation).
-- The `setStep()` state machine wiring (button enable/disable, label updates).
-- The responsive CSS Grid layout and `body.lit` safelight theme swap.
-
-The single-file constraint meant every generated snippet was integrated by hand — no module boundaries — which kept the final file small (~280 lines) but required careful context management between prompts.
-
-## What Kiro did not do
-
-- The base64 default negative was added manually.
-- Final pixel-level tuning of the exposure formula (`eN = seconds / 9`) was done by eye, not spec.
-- Accessibility review (contrast ratios, `aria-pressed`) was verified manually.
+## Next steps with Kiro
+Remaining tasks in `tasks.md` (for example, a split-grade printing mode) are to be
+implemented through Kiro CLI against these specs.
