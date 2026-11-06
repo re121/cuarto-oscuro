@@ -8,7 +8,9 @@ browser: load a negative, set the exposure, dodge and burn by hand, then watch
 the print develop in the tray — shadows first — before fixing it.
 
 ## Run
-Open `src/index.html` in a browser. One file, no build, no server:
+**Live:** https://cuarto-oscuro-re1.netlify.app
+
+Or open `src/index.html` in a browser. One file, no build, no server:
 your photos never leave your machine.
 
 ## Features
