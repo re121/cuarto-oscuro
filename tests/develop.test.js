@@ -19,3 +19,11 @@ import { HELP_STEP_COUNT } from '../src/develop.js';
 test('HELP_STEP_COUNT is 5', () => {
   assert.equal(HELP_STEP_COUNT, 5);
 });
+
+import { filmStripLabel } from '../src/develop.js';
+test('filmStripLabel produces 1A–5A', () => {
+  assert.deepEqual(
+    [1,2,3,4,5].map(filmStripLabel),
+    ['1A','2A','3A','4A','5A']
+  );
+});

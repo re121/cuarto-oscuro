@@ -81,3 +81,19 @@
 50. THE SYSTEM SHALL display the "¿Cómo funciona?" button in the saferow area (alongside the light and sound toggles) at all workflow states.
 51. WHEN the state transitions from exposing to latent (after the enlarger countdown ends), THE SYSTEM SHALL update the status line to read "La imagen está latente: pulsa Revelar." in Spanish (or the English equivalent "Latent image: press Develop." if the UI is showing English — but since only the modal has a language toggle, the status line hint SHALL always appear in Spanish).
 52. THE SYSTEM SHALL preserve all existing features unchanged; the modal SHALL contain no external URLs or external resources.
+
+## Film strip negative carrier
+53. WHEN the page loads, THE SYSTEM SHALL display a vertical 35mm film strip panel to the left of the enlarger bench, containing at least one frame: the built-in default negative as frame 1.
+54. WHEN the user selects one or more image files via the "Cargar imagen" file input (which SHALL accept `multiple` files), THE SYSTEM SHALL add one thumbnail frame per file to the film strip, assigning sequential frame labels ("1A", "2A", "3A", …) and immediately select the first newly-added frame.
+55. WHEN the film strip contains frames, THE SYSTEM SHALL render each frame as an inverted (negative) greyscale thumbnail on a dark orange-brown film-base background, with rectangular sprocket holes punched along both vertical edges of the strip and a small yellow frame-number label below the sprocket holes.
+56. WHEN the user clicks a frame in the film strip, THE SYSTEM SHALL load that frame's image data as `rawGray`, reset `mask` to all-ones, reset workflow state to `compose`, redraw the compose preview, and highlight the selected frame with a coloured border.
+57. WHEN a frame is selected, THE SYSTEM SHALL show a small "×" remove button on that frame; clicking it SHALL remove the frame from the strip, select the previous frame (or the next if no previous exists); if removing the last frame, THE SYSTEM SHALL clear the canvas and rawGray and return to the initial "Coloca el negativo" status.
+58. WHEN the viewport is wider than 780 px, THE SYSTEM SHALL display the film strip as a fixed-width vertical column to the left of `.studio`; WHEN the viewport is 780 px or narrower, THE SYSTEM SHALL display the strip as a horizontal scrollable row above the enlarger bench.
+59. THE SYSTEM SHALL store each frame's full-resolution image data (the original `src` URL or decoded pixel data) so that selecting a previously-loaded frame re-decodes correctly without re-reading the file.
+60. THE SYSTEM SHALL render sprocket holes as a repeating pattern of small rounded rectangles on both sides of the strip, spaced evenly between frames.
+61. THE SYSTEM SHALL number frames with labels in the format "NA" where N increments from 1, rendered in small yellow monospace type consistent with the app's existing typography.
+62. THE SYSTEM SHALL apply a film-base background colour of approximately `#3d1f0a` (dark orange-brown) to the strip container, distinct from the app's panel and room colours.
+63. WHEN the safelight is toggled on (body.lit), THE SYSTEM SHALL keep the film strip in its dark film-base appearance (the strip is not affected by the light toggle).
+64. THE SYSTEM SHALL allow the user to add more images at any time (in any workflow state) by using the file input; adding a new image SHALL not disrupt an in-progress expose, develop, or fix operation on the current frame.
+65. THE SYSTEM SHALL preserve all existing features (dodge/burn, split-grade, test strip, help modal, toning, grain, export, safelight, sound, state machine) unchanged.
+66. THE SYSTEM SHALL process all images locally using `FileReader`; no image data SHALL be uploaded or transmitted over the network.

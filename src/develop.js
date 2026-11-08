@@ -12,3 +12,8 @@ export function testStripBandWidth(canvasWidth) {
 
 // Help modal constant shared with tests.
 export const HELP_STEP_COUNT = 5;
+
+// Film strip label helper shared with tests.
+export function filmStripLabel(oneBasedIndex) {
+  return String(oneBasedIndex) + 'A';
+}

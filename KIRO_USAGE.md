@@ -70,3 +70,25 @@ switches to English. Built with Kiro CLI using spec-driven development:
    - "¿Cómo funciona?" trigger added to the saferow (always visible).
    - Latent status hint updated to "La imagen está latente: pulsa Revelar."
 6. All tasks checked off in `tasks.md`. Committed.
+
+## Feature built with Kiro: film strip negative carrier
+A vertical 35mm film strip column sits to the left of the enlarger (horizontal
+above it on narrow screens). Each loaded image appears as an inverted negative
+thumbnail on a dark orange-brown film base with sprocket holes and a yellow frame
+label. Clicking a frame instantly loads it into the enlarger; a × button removes it.
+The file input now accepts multiple files at once. Built with Kiro CLI:
+1. Kiro added EARS requirements 53–66 to `requirements.md`.
+2. Kiro wrote the "Film strip negative carrier" section of `design.md` (grid layout,
+   CSS, frame data model, paintThumb algorithm, addFrame/selectFrame/removeFrame/
+   decodeAndAdd logic, multi-file input handler).
+3. Kiro added the linked tasks to `tasks.md`.
+4. Kiro exported `filmStripLabel` from `src/develop.js` and added one new Node test
+   (all 6 tests pass).
+5. Kiro implemented the feature in `src/index.html`:
+   - `.outer-grid` wraps `.filmstrip` + existing `.studio`; responsive at 780 px.
+   - `paintThumb`: nearest-neighbour downsample + invert to 44×34 canvas.
+   - `addFrame / selectFrame / removeFrame / decodeAndAdd` functions.
+   - Multi-file `#file` change handler; startup default negative via `decodeAndAdd`.
+   - `selectFrame` uses pre-decoded rawData directly (no double decode).
+   - All existing features unchanged.
+6. All tasks checked off in `tasks.md`. Committed.

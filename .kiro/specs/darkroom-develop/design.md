@@ -361,3 +361,220 @@ $('#helpLang').onclick = () => {
 
 In `setStep()`, when `state === 'latent'`, the status line text is overridden to:
 `"La imagen está latente: pulsa Revelar."` (replacing the existing generic latent text).
+
+## Film strip negative carrier
+
+### Layout
+
+The page grid gains a third column to the left of `.studio`:
+
+```
+.outer-grid
+  .filmstrip          ← new, left column (wide screens)
+  .studio             ← existing (bench + rail)
+```
+
+```css
+/* Wide: filmstrip left, then studio */
+.outer-grid {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+/* Narrow: filmstrip above studio */
+@media (max-width: 780px) {
+  .outer-grid { grid-template-columns: 1fr; }
+}
+```
+
+The existing `.studio` grid (`1fr 310px`) remains unchanged inside `.outer-grid`.
+
+### Film strip container
+
+```html
+<div class="filmstrip" id="filmstrip">
+  <!-- .fs-frame elements injected by JS -->
+</div>
+```
+
+```css
+.filmstrip {
+  width: 68px;
+  background: #3d1f0a;           /* dark orange-brown film base */
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  max-height: calc(560px + 32px); /* canvas H + tray padding */
+  position: sticky;
+  top: 16px;
+}
+@media (max-width: 780px) {
+  .filmstrip {
+    width: 100%;
+    max-height: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 8px;
+    position: static;
+  }
+}
+```
+
+### Frame element
+
+Each frame is a `.fs-frame` element:
+
+```html
+<div class="fs-frame" data-idx="0">
+  <div class="fs-sprockets">  <!-- top sprockets row -->
+    <span class="fs-hole"></span><span class="fs-hole"></span>
+  </div>
+  <div class="fs-thumb-wrap">
+    <canvas class="fs-thumb" width="44" height="34"></canvas>
+    <button class="fs-remove" aria-label="Eliminar fotograma">×</button>
+  </div>
+  <div class="fs-label">1A</div>
+  <div class="fs-sprockets">  <!-- bottom sprockets row -->
+    <span class="fs-hole"></span><span class="fs-hole"></span>
+  </div>
+</div>
+```
+
+```css
+.fs-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 2px 0;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+.fs-frame.active .fs-thumb-wrap { outline: 2px solid #e03a2a; border-radius: 3px; }
+.fs-sprockets { display: flex; justify-content: space-around; width: 100%; padding: 1px 4px; }
+.fs-hole {
+  display: block; width: 8px; height: 6px;
+  background: #1a0a04; border-radius: 2px;
+}
+.fs-thumb-wrap { position: relative; }
+.fs-thumb { display: block; border-radius: 2px; }
+.fs-remove {
+  display: none; position: absolute; top: 1px; right: 1px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(224,58,42,.85); border: none;
+  color: #fff; font-size: 9px; line-height: 1;
+  cursor: pointer; padding: 0;
+}
+.fs-frame.active .fs-remove { display: flex; align-items: center; justify-content: center; }
+.fs-label {
+  font-family: var(--mono); font-size: 8px; color: #d4a017;
+  letter-spacing: .05em; margin: 1px 0;
+}
+/* Horizontal (narrow) */
+@media (max-width: 780px) {
+  .fs-frame { flex-direction: row; width: auto; padding: 0 2px; height: 68px; }
+  .fs-sprockets { flex-direction: column; width: auto; height: 100%; padding: 4px 1px; }
+  .fs-hole { width: 6px; height: 8px; }
+  .fs-label { writing-mode: vertical-rl; margin: 0 1px; }
+}
+```
+
+### Thumbnail rendering
+
+Each frame's thumbnail is painted once when the frame is added, using a small off-screen canvas:
+
+```js
+function paintThumb(thumbCanvas, rawData, imgW, imgH) {
+  const tw = thumbCanvas.width, th = thumbCanvas.height;
+  const tctx = thumbCanvas.getContext('2d');
+  const im = tctx.createImageData(tw, th);
+  for (let ty = 0; ty < th; ty++) {
+    for (let tx = 0; tx < tw; tx++) {
+      // sample rawData (Float32Array[imgW×imgH]) with nearest-neighbour
+      const sx = Math.floor(tx * imgW / tw);
+      const sy = Math.floor(ty * imgH / th);
+      const raw = rawData[sy * imgW + sx];
+      // invert: negative appearance
+      const v = Math.round((1 - raw) * 255);
+      const i = (ty * tw + tx) * 4;
+      im.data[i] = im.data[i+1] = im.data[i+2] = v; im.data[i+3] = 255;
+    }
+  }
+  tctx.putImageData(im, 0, 0);
+}
+```
+
+### Frame data model
+
+```js
+// Each entry in the `frames` array:
+{
+  src: string,           // original data-URL (for re-loading via loadImage)
+  label: string,         // "1A", "2A", …
+  rawGray: Float32Array, // full-resolution decoded pixels (W×H)
+  el: HTMLElement,       // .fs-frame DOM node
+}
+
+let frames = [];          // ordered list of frames
+let activeFrame = -1;     // index into frames[]
+```
+
+The built-in default negative is inserted as `frames[0]` at startup.
+
+### Adding frames
+
+`addFrame(src, rawData)` — called after an image is decoded:
+1. Build label: `String(frames.length + 1) + 'A'`
+2. Create `.fs-frame` element; paint the 44×34 thumbnail.
+3. Push to `frames[]`; set as active via `selectFrame(index)`.
+4. Append element to `#filmstrip`.
+
+### Selecting a frame
+
+`selectFrame(index)`:
+1. Remove `.active` from all `.fs-frame` elements; add it to `frames[index].el`.
+2. `activeFrame = index`.
+3. Call the existing `loadImage(frames[index].src)` — which already resets `rawGray`, `mask`, `state`, calls `drawPreview()` and `setStep()`.
+
+### Removing a frame
+
+`removeFrame(index)`:
+1. Remove `frames[index].el` from the DOM.
+2. Splice `frames` array.
+3. If `frames.length === 0`: clear canvas, set `rawGray = null`, call `setStep()`, update status.
+4. Else: select `Math.max(0, index - 1)`.
+
+### File input change handler
+
+Replace the existing single-file handler with a multi-file loop:
+
+```js
+$('#file').addEventListener('change', e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  const startIdx = frames.length;
+  files.forEach(f => {
+    const r = new FileReader();
+    r.onload = () => decodeAndAdd(r.result);
+    r.readAsDataURL(f);
+  });
+  e.target.value = ''; // allow re-selecting same files
+});
+```
+
+`decodeAndAdd(src)` draws the image onto the full-res off-screen canvas, builds `rawGray`, then calls `addFrame(src, rawGray, W, H)`.
+
+### Label numbering
+
+Labels are assigned at add-time as `frames.length + 1 + 'A'` (before the push). If frames are removed and then new ones added, numbering continues from the current length + 1 (not re-indexed), keeping labels stable.
+
+### Existing file input
+
+The `<label class="loadbtn" for="file">Cargar imagen</label>` and `<input type="file" id="file">` in the rail remain; `multiple` attribute is added to the input. The "Negativo" section of the rail is kept so the label still serves as the upload trigger.
