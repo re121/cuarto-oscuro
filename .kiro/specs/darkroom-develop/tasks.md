@@ -67,3 +67,13 @@ All tasks are implemented in `src/index.html`.
 - [x] Update `expose()` to run soft phase (yellow tint) then hard phase (magenta tint) in sequence when `splitGrade` is true; play click between phases; skip zero-duration phases (REQ 29, REQ 30)
 - [x] Show zero-time warning in status when both softTime and hardTime are 0 (REQ 33)
 - [x] Verify all existing features unaffected when `splitGrade` is false (REQ 34)
+
+## Test strip
+- [x] Add `<button class="btn" id="testStrip" disabled>Tira de prueba</button>` to the HTML btn-row alongside Expose (REQ 40)
+- [x] Update `setStep()` to enable `#testStrip` only in compose state when rawGray is not null (REQ 40, REQ 41)
+- [x] Implement `drawTestStrip()`: divide the canvas into 5 equal vertical bands, compute final[] for each pixel using the correct exposure model (standard or split-grade) at t = 3, 6, 9, 12, 15 s with mask applied (REQ 35, REQ 36)
+- [x] After drawing all bands in `drawTestStrip()`, call `applyGrain()` to add grain consistently (REQ 36)
+- [x] Draw band labels ("3s"–"15s") centred at the top of each band with a readable style (REQ 37)
+- [x] Attach a one-shot click listener on `#paper` that maps X coordinate → band → time, updates exposure or split-grade times, calls `drawPreview()`, and removes itself (REQ 38, REQ 39, REQ 42)
+- [x] Wire `#testStrip` `onclick` to `drawTestStrip()` (REQ 35)
+- [x] Add a Node test in `tests/develop.test.js` verifying that `testStripTimes` (exported from `src/develop.js`) equals `[3, 6, 9, 12, 15]` and that each band width for W=460 is `Math.floor(460/5) = 92` (REQ 35)

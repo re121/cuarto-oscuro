@@ -148,3 +148,78 @@ If either time is 0 its phase is skipped silently. If both are 0 the Expose butt
 - When pressed: hide the grade-slider `<div>` (`display:none`), show the split-grade `<div>` containing the two range inputs (`id="softTime"` / `id="hardTime"`).
 - When released: reverse. Grade slider and standard model are restored.
 - Labels: **"Suave (amarillo) · N s"** and **"Duro (magenta) · N s"** following the existing label style.
+
+## Test strip
+
+A test strip is a darkroom tool: one sheet of paper receives several stepped exposures (each band covered after its allotted time) so the printer can pick the best time before burning a full sheet. This implementation simulates all five bands simultaneously using the exposure model.
+
+### Band layout
+
+```
+Canvas 460 × 560 px divided into 5 equal vertical bands:
+  band 0: x = 0   … 91   → 3 s
+  band 1: x = 92  … 183  → 6 s
+  band 2: x = 184 … 275  → 9 s
+  band 3: x = 276 … 367  → 12 s
+  band 4: x = 368 … 459  → 15 s
+  (bandWidth = Math.floor(W / 5))
+```
+
+### Density per band
+
+For each band `i` with exposure time `t = [3, 6, 9, 12, 15][i]`:
+
+```
+// Standard mode
+eN = t / 9
+final(p) = pow(curve(rawGray[p]), eN × mask[p])
+
+// Split-grade mode
+ratio = softTime / (softTime + hardTime)   // default 0.5 if both 0
+tSoft  = t × ratio
+tHard  = t × (1 − ratio)
+eNs = tSoft / 9,  eNh = tHard / 9
+final(p) = pow(curveSoft(raw[p]), eNs × mask[p]) × pow(curveHard(raw[p]), eNh × mask[p])
+```
+
+Grain is applied once to the full image after all bands are drawn (same `applyGrain()` call used in development).
+
+### Labels
+
+Each band's label ("3s" … "15s") is drawn centred horizontally in the band and 18 px from the top:
+
+```
+ctx.font = '500 13px "IBM Plex Mono", monospace'
+ctx.fillStyle = 'rgba(255,255,255,0.85)'
+ctx.textAlign = 'center'
+ctx.fillText(label, bandX + bandWidth/2, 18)
+```
+
+A subtle dark drop-shadow (`ctx.shadowBlur = 3, shadowColor = 'rgba(0,0,0,.8)'`) ensures the label is legible over light highlights.
+
+### Click-to-set
+
+A one-shot `'click'` listener on `#paper` maps the pointer's canvas-relative X coordinate to a band index:
+
+```
+bandIndex = Math.floor(canvasX / bandWidth)   clamped [0, 4]
+pickedTime = [3, 6, 9, 12, 15][bandIndex]
+```
+
+**Standard mode:** `exposure = pickedTime`; update the `#exposure` slider and its value display.
+
+**Split-grade mode:**
+```
+ratio = softTime / (softTime + hardTime)   // or 0.5 if both are 0
+softTime = Math.round(pickedTime × ratio)
+hardTime = pickedTime − softTime
+```
+Update `#softTime`, `#hardTime`, and their value displays.
+
+After the click: remove the one-shot listener, call `drawPreview()` to restore the compose view.
+
+### UI
+
+- Button: `<button class="btn" id="testStrip" disabled>Tira de prueba</button>`, placed in the workflow btn-row alongside Expose.
+- Enabled only in `compose` state when `rawGray` is not null (same gating as Expose).
+- `setStep()` applies the same disabled logic as the Expose button.

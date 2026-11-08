@@ -26,3 +26,24 @@ filter for shadows) was built end-to-end with Kiro CLI using spec-driven develop
    combined preview and develop, two-phase timer showing the active filter) and
    checked the tasks off.
 The feature was then tested by hand in the browser (both modes, no console errors).
+
+## Feature built with Kiro: test strip
+A test strip renders the same negative at 5 stepped exposure times (3, 6, 9, 12, 15 s)
+as vertical bands, so the printer can pick the best time before committing to a full
+exposure. Built end-to-end with Kiro CLI using spec-driven development:
+1. Kiro added EARS requirements 35–42 to `requirements.md`.
+2. Kiro wrote the "Test strip" section of `design.md` (band layout, per-band density
+   formula, label rendering, and click-to-set logic for both standard and split-grade
+   modes).
+3. Kiro added the linked tasks to `tasks.md`.
+4. Kiro exported `testStripTimes` and `testStripBandWidth()` from `src/develop.js` and
+   added two new Node tests in `tests/develop.test.js` (all 4 tests pass).
+5. Kiro implemented the feature in `src/index.html`:
+   - "Tira de prueba" button in the compose btn-row, disabled until an image is loaded.
+   - `drawTestStrip()` divides the 460 × 560 canvas into 5 × 92 px bands, runs the
+     full density model (standard or split-grade) at t = 3, 6, 9, 12, 15 s with the
+     current mask and grain, draws centred time labels with shadow for legibility, and
+     installs a one-shot click listener.
+   - Clicking a band sets the exposure (or scales split-grade times proportionally) and
+     restores the live compose preview.
+6. All tasks checked off in `tasks.md`. Committed.

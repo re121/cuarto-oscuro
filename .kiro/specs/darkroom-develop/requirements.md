@@ -59,3 +59,13 @@
 32. WHEN split-grade mode is active, THE SYSTEM SHALL update the compose preview in real time as either time slider changes, reflecting the combined density model.
 33. WHEN split-grade mode is active and both soft time and hard time are 0, THE SYSTEM SHALL display a warning hint that the exposure time is zero.
 34. THE SYSTEM SHALL preserve all existing features (dodge/burn, toning, grain, safelight, sound, export, state machine) unchanged regardless of whether split-grade mode is on or off.
+
+## Test strip
+35. WHEN the user clicks the "Tira de prueba" button in compose state with an image loaded, THE SYSTEM SHALL render the canvas as 5 equal vertical bands, each exposed at 3, 6, 9, 12 and 15 seconds respectively, using the current grade (or the combined split-grade density model if split-grade mode is active).
+36. WHEN rendering the test-strip bands, THE SYSTEM SHALL apply the current dodge/burn mask and grain settings consistently across all bands.
+37. WHEN the test strip is rendered, THE SYSTEM SHALL label each band with its exposure time (e.g. "3s", "6s", "9s", "12s", "15s") centred at the top of the band in a contrasting, legible style.
+38. WHEN the user clicks one of the 5 rendered bands on the test-strip canvas, THE SYSTEM SHALL set the exposure slider (or, in split-grade mode, scale the soft and hard times proportionally) to the corresponding time value for that band, restore the normal compose preview, and dismiss the test-strip view.
+39. WHEN split-grade mode is active and the user clicks a test-strip band, THE SYSTEM SHALL scale the soft and hard times proportionally so their sum equals the clicked band's total seconds (preserving their existing ratio; if both are 0 the split is set to 50/50).
+40. THE SYSTEM SHALL display the "Tira de prueba" button only in compose state; it SHALL be disabled in all other states.
+41. WHEN the user clicks "Tira de prueba" with no image loaded, THE SYSTEM SHALL do nothing (button remains disabled until an image is present).
+42. THE SYSTEM SHALL return to compose preview and re-enable all compose-state controls when a test-strip band is clicked, leaving the workflow state as compose.

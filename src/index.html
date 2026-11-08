@@ -125,6 +125,7 @@ body.lit .tagline,body.lit label,body.lit .hint,body.lit .step,body.lit .lab,bod
       </div>
       <div><label>Grano · <span id="grVal">medio</span></label><input type="range" id="grain" min="0" max="30" value="14"></div>
       <div class="btn-row"><button class="btn primary" id="expose">Exponer</button><button class="btn" id="develop" disabled>Revelar</button></div>
+      <button class="btn" id="testStrip" disabled>Tira de prueba</button>
       <div class="btn-row"><button class="btn" id="fix" disabled>Parar + Fijar</button><button class="btn" id="reset">Nueva copia</button></div>
       <button class="btn gold" id="download" disabled>Descargar copia</button>
       <div class="saferow"><span class="switch" id="light">Encender la luz</span><span class="switch" id="sound">Sonido: on</span></div>
@@ -194,6 +195,77 @@ function drawMaskOverlay(){
     if(m<0.98)d[i+2]=Math.min(255,d[i+2]+(1-m)*140);else if(m>1.02)d[i]=Math.min(255,d[i]+(m-1)*120);}
   ctx.putImageData(im,0,0);
 }
+const STRIP_TIMES=[3,6,9,12,15];
+function drawTestStrip(){
+  if(!rawGray)return;
+  const bw=Math.floor(W/STRIP_TIMES.length);
+  const im=ctx.createImageData(W,H);
+  for(let bi=0;bi<STRIP_TIMES.length;bi++){
+    const t=STRIP_TIMES[bi];
+    const x0=bi*bw, x1=(bi===STRIP_TIMES.length-1)?W:x0+bw;
+    if(splitGrade){
+      const total=softTime+hardTime;
+      const ratio=total>0?softTime/total:0.5;
+      const tS=t*ratio, tH=t*(1-ratio);
+      const eNs=tS/9, eNh=tH/9;
+      for(let y=0;y<H;y++){
+        for(let x=x0;x<x1;x++){
+          const p=y*W+x;
+          const val=Math.min(1,Math.pow(curveSoft(rawGray[p]),Math.max(0.001,eNs*mask[p]))*Math.pow(curveHard(rawGray[p]),Math.max(0.001,eNh*mask[p])));
+          const v=Math.round(255*(1-val));
+          const i4=p*4;im.data[i4]=im.data[i4+1]=im.data[i4+2]=v;im.data[i4+3]=255;
+        }
+      }
+    } else {
+      const eN=t/9;
+      for(let y=0;y<H;y++){
+        for(let x=x0;x<x1;x++){
+          const p=y*W+x;
+          const val=Math.pow(curve(rawGray[p]),eN*mask[p]);
+          const v=Math.round(255*(1-val));
+          const i4=p*4;im.data[i4]=im.data[i4+1]=im.data[i4+2]=v;im.data[i4+3]=255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(im,0,0);
+  applyGrain();
+  // Draw labels
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=3;
+  ctx.font='500 13px "IBM Plex Mono",ui-monospace,monospace';
+  ctx.fillStyle='rgba(255,255,255,0.85)';ctx.textAlign='center';
+  // Band dividers
+  ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;
+  for(let bi=0;bi<STRIP_TIMES.length;bi++){
+    const x0=bi*bw;
+    ctx.fillText(STRIP_TIMES[bi]+'s',x0+bw/2,18);
+    if(bi>0){ctx.beginPath();ctx.moveTo(x0,0);ctx.lineTo(x0,H);ctx.stroke();}
+  }
+  ctx.restore();
+  // One-shot click to pick a band
+  function onStripClick(e){
+    paper.removeEventListener('click',onStripClick);
+    const rect=paper.getBoundingClientRect();
+    const cx=(e.clientX-rect.left)*W/rect.width;
+    const bi=Math.min(STRIP_TIMES.length-1,Math.max(0,Math.floor(cx/bw)));
+    const picked=STRIP_TIMES[bi];
+    if(splitGrade){
+      const total=softTime+hardTime;
+      const ratio=total>0?softTime/total:0.5;
+      softTime=Math.round(picked*ratio);
+      hardTime=picked-softTime;
+      $('#softTime').value=softTime;$('#softVal').textContent=softTime;
+      $('#hardTime').value=hardTime;$('#hardVal').textContent=hardTime;
+    } else {
+      exposure=picked;
+      $('#exposure').value=exposure;$('#expVal').textContent=exposure;
+    }
+    drawPreview();
+  }
+  paper.addEventListener('click',onStripClick);
+}
+
 let painting=false;
 function paintAt(x,y){ if(tool==='none'||!rawGray)return; const r=brush/2,delta=(tool==='dodge'?-0.04:0.04);
   for(let yy=Math.max(0,y-r);yy<Math.min(H,y+r);yy++)for(let xx=Math.max(0,x-r);xx<Math.min(W,x+r);xx++){
@@ -216,6 +288,7 @@ function setStep(){
   $('#stepLabel').textContent=m[0];$('#stepTitle').textContent=m[1];$('#status').textContent=m[2];
   $('#expose').disabled=state!=='compose'; $('#develop').disabled=state!=='latent';
   $('#fix').disabled=!(state==='developing'||state==='devdone'); $('#download').disabled=state!=='fixed';
+  $('#testStrip').disabled=!(state==='compose'&&rawGray!==null);
 }
 function expose(){
   if(state!=='compose'||!rawGray)return;
@@ -320,6 +393,7 @@ $('#tDodge').onclick=()=>setTool('dodge');$('#tBurn').onclick=()=>setTool('burn'
 function setToner(t){toner=t;$('#vNeutral').setAttribute('aria-pressed',t==='neutral');$('#vSepia').setAttribute('aria-pressed',t==='sepia');$('#vSelenium').setAttribute('aria-pressed',t==='selenium');}
 $('#vNeutral').onclick=()=>setToner('neutral');$('#vSepia').onclick=()=>setToner('sepia');$('#vSelenium').onclick=()=>setToner('selenium');
 $('#expose').onclick=expose;$('#develop').onclick=develop;$('#fix').onclick=fix;$('#reset').onclick=reset;$('#download').onclick=download;
+$('#testStrip').onclick=drawTestStrip;
 $('#file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>loadImage(r.result);r.readAsDataURL(f);});
 $('#light').onclick=()=>{document.body.classList.toggle('lit');$('#light').textContent=document.body.classList.contains('lit')?'Apagar la luz':'Encender la luz';};
 $('#sound').onclick=()=>{soundOn=!soundOn;ensureAudio();if(!soundOn)waterStop();$('#sound').textContent='Sonido: '+(soundOn?'on':'off');};
