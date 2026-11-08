@@ -69,3 +69,15 @@
 40. THE SYSTEM SHALL display the "Tira de prueba" button only in compose state; it SHALL be disabled in all other states.
 41. WHEN the user clicks "Tira de prueba" with no image loaded, THE SYSTEM SHALL do nothing (button remains disabled until an image is present).
 42. THE SYSTEM SHALL return to compose preview and re-enable all compose-state controls when a test-strip band is clicked, leaving the workflow state as compose.
+
+## Help modal
+43. WHEN the user clicks the "¿Cómo funciona?" button, THE SYSTEM SHALL display a modal overlay containing the darkroom manual in Spanish with short, beginner-friendly sentences.
+44. THE SYSTEM SHALL structure the manual into five numbered steps: (1) Componer, (2) Exponer, (3) Revelar, (4) Parar + Fijar, (5) Descargar copia; each step SHALL include a short title and one to three plain sentences explaining what it does.
+45. THE SYSTEM SHALL include a brief plain-text explanation of the Test strip feature (one to two sentences) in the modal.
+46. THE SYSTEM SHALL include a brief plain-text explanation of the Split-grade printing feature (one to two sentences) in the modal.
+47. WHEN the user clicks a toggle button labelled "English" inside the modal, THE SYSTEM SHALL switch the modal body to English; WHEN the user clicks the same toggle (now labelled "Español"), THE SYSTEM SHALL switch back to Spanish.
+48. WHEN the user clicks the close button or clicks outside the modal, THE SYSTEM SHALL dismiss the modal without changing any app state.
+49. THE SYSTEM SHALL make the modal keyboard-accessible: pressing Escape SHALL close it, and focus SHALL be trapped inside the modal while it is open.
+50. THE SYSTEM SHALL display the "¿Cómo funciona?" button in the saferow area (alongside the light and sound toggles) at all workflow states.
+51. WHEN the state transitions from exposing to latent (after the enlarger countdown ends), THE SYSTEM SHALL update the status line to read "La imagen está latente: pulsa Revelar." in Spanish (or the English equivalent "Latent image: press Develop." if the UI is showing English — but since only the modal has a language toggle, the status line hint SHALL always appear in Spanish).
+52. THE SYSTEM SHALL preserve all existing features unchanged; the modal SHALL contain no external URLs or external resources.

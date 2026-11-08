@@ -47,3 +47,26 @@ exposure. Built end-to-end with Kiro CLI using spec-driven development:
    - Clicking a band sets the exposure (or scales split-grade times proportionally) and
      restores the live compose preview.
 6. All tasks checked off in `tasks.md`. Committed.
+
+## Feature built with Kiro: help modal
+A "¿Cómo funciona?" button in the saferow opens a `<dialog>` modal with a
+beginner-friendly Spanish manual of the five darkroom steps. An in-modal toggle
+switches to English. Built with Kiro CLI using spec-driven development:
+1. Kiro added EARS requirements 43–52 to `requirements.md`.
+2. Kiro wrote the "Help modal" section of `design.md` (dialog structure, content
+   data objects, render algorithm, open/close logic, CSS, language toggle, latent hint).
+3. Kiro added the linked tasks to `tasks.md`.
+4. Kiro exported `HELP_STEP_COUNT` from `src/develop.js` and added one new Node test
+   in `tests/develop.test.js` (all 5 tests pass).
+5. Kiro implemented the feature in `src/index.html`:
+   - CSS for the dialog, header, scrollable body, step sections, and extras heading;
+     `body.lit` overrides included.
+   - `<dialog id="helpDialog">` with native focus-trap and Escape-to-close via
+     `showModal()` / `close()`.
+   - `HELP_ES` and `HELP_EN` content objects with five steps plus Test strip and
+     Split-grade extras in each language.
+   - `renderHelp(lang)`, `openHelp()`, `closeHelp()`; backdrop click closes;
+     language toggle swaps title, button label, and re-renders body.
+   - "¿Cómo funciona?" trigger added to the saferow (always visible).
+   - Latent status hint updated to "La imagen está latente: pulsa Revelar."
+6. All tasks checked off in `tasks.md`. Committed.

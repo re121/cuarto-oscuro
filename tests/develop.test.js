@@ -14,3 +14,8 @@ test('testStripTimes are [3,6,9,12,15]', () => {
 test('testStripBandWidth for 460px canvas is 92', () => {
   assert.equal(testStripBandWidth(460), 92);
 });
+
+import { HELP_STEP_COUNT } from '../src/develop.js';
+test('HELP_STEP_COUNT is 5', () => {
+  assert.equal(HELP_STEP_COUNT, 5);
+});

@@ -77,3 +77,14 @@ All tasks are implemented in `src/index.html`.
 - [x] Attach a one-shot click listener on `#paper` that maps X coordinate → band → time, updates exposure or split-grade times, calls `drawPreview()`, and removes itself (REQ 38, REQ 39, REQ 42)
 - [x] Wire `#testStrip` `onclick` to `drawTestStrip()` (REQ 35)
 - [x] Add a Node test in `tests/develop.test.js` verifying that `testStripTimes` (exported from `src/develop.js`) equals `[3, 6, 9, 12, 15]` and that each band width for W=460 is `Math.floor(460/5) = 92` (REQ 35)
+
+## Help modal
+- [x] Add CSS for `.help-dialog`, `.help-inner`, `.help-header`, `.help-body`, `.help-step`, `.help-extras-heading` to the `<style>` block (REQ 43, REQ 48, REQ 49)
+- [x] Add `<dialog id="helpDialog">` markup with header (title, language toggle, close button) and empty `#helpBody` div (REQ 43, REQ 47, REQ 48)
+- [x] Add `HELP_ES` and `HELP_EN` content objects in the `<script>` block (REQ 44, REQ 45, REQ 46, REQ 47)
+- [x] Implement `renderHelp(lang)` to build `#helpBody` innerHTML from the active content object (REQ 44, REQ 45, REQ 46)
+- [x] Implement `openHelp()` / `closeHelp()` and wire backdrop-click to close (REQ 48, REQ 49)
+- [x] Wire `#helpClose` onclick and `#helpLang` onclick; language toggle updates title, button label, and re-renders body (REQ 47, REQ 48)
+- [x] Add `<span class="switch" id="help">¿Cómo funciona?</span>` to the saferow alongside the light and sound toggles; wire its onclick to `openHelp()` (REQ 50)
+- [x] Update the `latent` entry in `setStep()`'s map to use status text "La imagen está latente: pulsa Revelar." (REQ 51)
+- [x] Add a Node test in `tests/develop.test.js` verifying that `HELP_STEP_COUNT` (exported from `src/develop.js`) equals 5 (REQ 44)

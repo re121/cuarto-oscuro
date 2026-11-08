@@ -9,3 +9,6 @@ export const testStripTimes = [3, 6, 9, 12, 15];
 export function testStripBandWidth(canvasWidth) {
   return Math.floor(canvasWidth / testStripTimes.length);
 }
+
+// Help modal constant shared with tests.
+export const HELP_STEP_COUNT = 5;

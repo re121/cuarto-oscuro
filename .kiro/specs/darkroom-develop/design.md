@@ -223,3 +223,141 @@ After the click: remove the one-shot listener, call `drawPreview()` to restore t
 - Button: `<button class="btn" id="testStrip" disabled>Tira de prueba</button>`, placed in the workflow btn-row alongside Expose.
 - Enabled only in `compose` state when `rawGray` is not null (same gating as Expose).
 - `setStep()` applies the same disabled logic as the Expose button.
+
+## Help modal
+
+### Structure
+
+A `<dialog id="helpDialog">` element is used for the modal. `<dialog>` provides native focus-trapping and `Escape`-to-close on modern browsers. A polyfill is not needed: the app already requires a modern Canvas 2D + Web Audio environment.
+
+```html
+<dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+  <div class="help-inner">
+    <div class="help-header">
+      <span id="helpTitle" class="help-title">¿Cómo funciona?</span>
+      <div class="help-header-actions">
+        <button class="btn help-lang" id="helpLang">English</button>
+        <button class="btn help-close" id="helpClose" aria-label="Cerrar">✕</button>
+      </div>
+    </div>
+    <div class="help-body" id="helpBody"><!-- filled by JS --></div>
+  </div>
+</dialog>
+```
+
+### Content data
+
+Two objects (`HELP_ES`, `HELP_EN`) hold the full text. Each has:
+- `title`: dialog heading string
+- `steps`: array of `{heading, text}` for the five workflow steps
+- `extras`: array of `{heading, text}` for Test strip and Split-grade
+
+```js
+const HELP_ES = {
+  title: '¿Cómo funciona?',
+  langToggle: 'English',
+  steps: [
+    { heading: '1 · Componer',
+      text: 'Carga un negativo con el botón "Cargar imagen".\nAjusta el tiempo de exposición (2–20 s) y el contraste (grado 1–5).\nUsa las herramientas Reservar y Quemar para aclarar u oscurecer zonas con el pincel.' },
+    { heading: '2 · Exponer',
+      text: 'Pulsa Exponer. La ampliadora proyecta la luz sobre el papel.\nEl papel queda en blanco: la imagen es latente e invisible hasta que se revela. Eso es normal.' },
+    { heading: '3 · Revelar',
+      text: 'Pulsa Revelar. El papel entra en el revelador.\nLas sombras aparecen primero; las luces llegan después. Así funciona la química real.' },
+    { heading: '4 · Parar + Fijar',
+      text: 'Pulsa Parar + Fijar para detener el revelado y fijar la copia.\nElige el virado (Neutro, Sepia o Selenio) antes de fijar para cambiar el tono de la copia.' },
+    { heading: '5 · Descargar copia',
+      text: 'Cuando la copia esté fijada, pulsa Descargar copia para guardarla como PNG.' },
+  ],
+  extras: [
+    { heading: 'Tira de prueba',
+      text: 'Pulsa "Tira de prueba" antes de exponer. Verás cinco bandas con tiempos de 3, 6, 9, 12 y 15 s.\nHaz clic en la banda que más te guste para usar ese tiempo.' },
+    { heading: 'Gradación dividida',
+      text: 'Activa "Gradación dividida" para controlar las luces y las sombras por separado.\nEl filtro amarillo (suave) controla las luces; el magenta (duro) construye las sombras.' },
+  ],
+};
+
+const HELP_EN = {
+  title: 'How does it work?',
+  langToggle: 'Español',
+  steps: [
+    { heading: '1 · Compose',
+      text: 'Load a negative with "Cargar imagen".\nSet the exposure time (2–20 s) and contrast grade (1–5).\nUse the Dodge and Burn brushes to lighten or darken specific areas.' },
+    { heading: '2 · Expose',
+      text: 'Click Expose. The enlarger shines light onto the paper.\nThe paper stays white — the image is latent and invisible until developed. This is normal.' },
+    { heading: '3 · Develop',
+      text: 'Click Develop. The paper goes into the developer tray.\nShadows appear first; highlights follow. That is how real darkroom chemistry works.' },
+    { heading: '4 · Stop + Fix',
+      text: 'Click Stop + Fix to halt development and fix the print.\nChoose a toner (Neutral, Sepia or Selenium) before fixing to change the print\'s colour.' },
+    { heading: '5 · Download print',
+      text: 'Once the print is fixed, click Download to save it as a PNG file.' },
+  ],
+  extras: [
+    { heading: 'Test strip',
+      text: 'Click "Tira de prueba" before exposing. Five bands are shown at 3, 6, 9, 12 and 15 s.\nClick the band you like to set that exposure time.' },
+    { heading: 'Split-grade printing',
+      text: 'Enable "Gradación dividida" to control highlights and shadows independently.\nThe yellow (soft) filter controls highlights; the magenta (hard) filter builds shadows.' },
+  ],
+};
+```
+
+### Rendering
+
+`renderHelp(lang)` builds the `#helpBody` innerHTML from the active content object:
+- Each step is a `<section class="help-step">` with `<h3>` heading and `<p>` text (newlines → `<br>`).
+- Extras section starts with a `<h3 class="help-extras-heading">` separator then the same `<section>` pattern.
+
+### Open / close
+
+```js
+function openHelp() { $('#helpDialog').showModal(); }
+function closeHelp() { $('#helpDialog').close(); }
+$('#helpDialog').addEventListener('click', e => { if (e.target === $('#helpDialog')) closeHelp(); });
+```
+
+`showModal()` natively traps focus and handles Escape.
+
+### Language toggle
+
+```js
+let helpLang = 'es';
+$('#helpLang').onclick = () => {
+  helpLang = helpLang === 'es' ? 'en' : 'es';
+  const data = helpLang === 'es' ? HELP_ES : HELP_EN;
+  $('#helpTitle').textContent = data.title;
+  $('#helpLang').textContent = data.langToggle;
+  renderHelp(helpLang);
+};
+```
+
+### CSS
+
+```css
+.help-dialog {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  max-width: min(540px, 94vw);
+  max-height: 80vh;
+  padding: 0;
+  overflow: hidden;
+}
+.help-dialog::backdrop { background: rgba(0,0,0,.72); }
+.help-inner { display: flex; flex-direction: column; height: 100%; }
+.help-header { display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.help-title { font-family: var(--display); font-size: 1.15rem; color: #f3e7df; }
+.help-header-actions { display: flex; gap: 8px; }
+.help-lang { padding: 5px 10px; font-size: .7rem; }
+.help-close { padding: 5px 10px; font-size: .85rem; }
+.help-body { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.help-step h3 { font-family: var(--display); font-size: 1rem; color: var(--safe); margin: 0 0 4px; }
+.help-step p { margin: 0; font-size: .82rem; line-height: 1.6; color: var(--ink); }
+.help-extras-heading { font-size: .7rem; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); margin: 4px 0 2px; }
+```
+
+### Latent-state hint
+
+In `setStep()`, when `state === 'latent'`, the status line text is overridden to:
+`"La imagen está latente: pulsa Revelar."` (replacing the existing generic latent text).
