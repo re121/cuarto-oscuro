@@ -89,6 +89,29 @@ All tasks are implemented in `src/index.html`.
 - [x] Update the `latent` entry in `setStep()`'s map to use status text "La imagen está latente: pulsa Revelar." (REQ 51)
 - [x] Add a Node test in `tests/develop.test.js` verifying that `HELP_STEP_COUNT` (exported from `src/develop.js`) equals 5 (REQ 44)
 
+## Zone System overlay
+- [x] Export `densityToZone(d)` and `zoneHistogram(densities)` pure helpers from `src/develop.js` (REQ 67, REQ 72)
+- [x] Add Node tests in `tests/develop.test.js` for `densityToZone` (boundary cases: 0→0, 1→10, 0.5→5) and `zoneHistogram` (all-zero input gives 11 zeros; uniform distribution) (REQ 67, REQ 72)
+- [x] Add zone false-colour palette constant (11 entries) in `src/index.html` script (REQ 70)
+- [x] Add zone Adams descriptions objects `ZONE_ES_DESC` and `ZONE_EN_DESC` (11 entries each) in `src/index.html` script (REQ 74)
+- [x] Add CSS for `.zone-legend`, `.zone-swatch`, `.zone-hist`, `.zone-bar-wrap`, `.zone-bar`, `.zone-bar-label`, `.zone-tip` to the `<style>` block (REQ 71, REQ 72, REQ 75–77)
+- [x] Add `<div id="zoneLegend" class="zone-legend" hidden>` below the canvas inside `.bench`, and `<div id="zoneHist" class="zone-hist" hidden>` and `<div id="zoneTip" class="zone-tip" hidden>` below it (REQ 71, REQ 72, REQ 75–77)
+- [x] Add `<button class="btn" id="zonas" aria-pressed="false">Zonas</button>` to a new row below the dodge/burn tools in the rail (REQ 67, REQ 78)
+- [x] Add `zoneMode` boolean and `zoneDensities` Float32Array to JS state (REQ 67, REQ 73)
+- [x] Implement `computeZoneDensities()`: return Float32Array of raw final[] values using the current exposure model and mask (same formula as `develop()` but not animated) (REQ 67)
+- [x] Implement `drawZoneMap()`: compute densities, map each pixel to a false-colour via `densityToZone`, putImageData, call `drawZoneLegend()`, `updateZoneHistogram()`, `updateZoneTip()` (REQ 67, REQ 68, REQ 71, REQ 72)
+- [x] Implement `drawZoneLegend()`: populate `#zoneLegend` with 11 swatch spans if not already present; show it (REQ 71)
+- [x] Implement `updateZoneHistogram(densities)`: compute counts, scale bar heights, update `#zoneHist` bar elements; show the histogram div (REQ 72)
+- [x] Implement `updateZoneTip(hist, n)`: compute dark/light percentages and update `#zoneTip` text (ES or EN based on `helpLang`); show the tip div (REQ 75, REQ 76, REQ 77)
+- [x] Implement `hideZoneUI()`: hide `#zoneLegend`, `#zoneHist`, `#zoneTip` (REQ 69, REQ 78)
+- [x] Wire `#zonas` click: toggle `zoneMode`, update `aria-pressed`, call `drawZoneMap()` or `drawPreview()` + `hideZoneUI()` (REQ 67, REQ 69)
+- [x] Add click listener on `#paper` that, when `zoneMode` is true, maps the click to a pixel, reads its zone, and updates `#status` with the Adams description in the current language (REQ 73, REQ 74); listener is active while `zoneMode` is true and removed on deactivation
+- [x] Update `setStep()` to disable `#zonas` in non-compose states and deactivate zone mode on state transitions away from compose (REQ 78)
+- [x] Update each existing slider `input` handler and `paintAt()` to call `drawZoneMap()` instead of `drawPreview()` when `zoneMode` is true (REQ 68)
+- [x] Add `Sistema de zonas` / `Zone System` entry to `HELP_ES.extras` and `HELP_EN.extras` content objects (REQ 79)
+- [x] Verify all existing features unaffected when `zoneMode` is false (REQ 80)
+- [x] Run `npm test` and confirm all tests pass
+
 ## Film strip negative carrier
 - [x] Add CSS for `.outer-grid`, `.filmstrip`, `.fs-frame`, `.fs-sprockets`, `.fs-hole`, `.fs-thumb-wrap`, `.fs-thumb`, `.fs-remove`, `.fs-label` including responsive horizontal layout at ≤780 px (REQ 53, REQ 55, REQ 58, REQ 60, REQ 61, REQ 62, REQ 63)
 - [x] Wrap the existing `.studio` div in a new `.outer-grid` div and prepend the `<div class="filmstrip" id="filmstrip"></div>` element (REQ 53, REQ 58)

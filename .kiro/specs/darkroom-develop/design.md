@@ -362,6 +362,231 @@ $('#helpLang').onclick = () => {
 In `setStep()`, when `state === 'latent'`, the status line text is overridden to:
 `"La imagen está latente: pulsa Revelar."` (replacing the existing generic latent text).
 
+## Zone System overlay
+
+Ansel Adams' Zone System divides the tonal scale into 11 zones (0 = absolute black, X = absolute white). In a darkroom print, knowing which zones each area will land in before committing to a full exposure lets the printer plan reservar/quemar strokes ahead of time.
+
+### Density-to-zone mapping
+
+The predicted print density for pixel `p` is identical to the `final[p]` formula in the develop step:
+
+```
+// Standard mode
+final(p) = pow(curve(rawGray[p]), (exposure / 9) × mask[p])
+
+// Split-grade mode
+final(p) = pow(curveSoft(raw[p]), (softTime / 9) × mask[p])
+         × pow(curveHard(raw[p]), (hardTime / 9) × mask[p])
+```
+
+The zone number for pixel `p` is:
+
+```
+zone(p) = clamp(Math.floor(final(p) * 11), 0, 10)
+```
+
+This maps `[0,1)` evenly into 11 bands of width `1/11`, with `1.0` clamped to zone 10.
+
+### Pure helper functions (exported from develop.js)
+
+```js
+/**
+ * Map a normalised density [0,1] to a zone number 0–10.
+ * Exported for tests.
+ */
+export function densityToZone(d) {
+  return Math.min(10, Math.max(0, Math.floor(d * 11)));
+}
+
+/**
+ * Compute an 11-element histogram (counts) over a Float32Array of densities.
+ * Exported for tests.
+ */
+export function zoneHistogram(densities) {
+  const hist = new Array(11).fill(0);
+  for (let i = 0; i < densities.length; i++) {
+    hist[densityToZone(densities[i])]++;
+  }
+  return hist;
+}
+```
+
+### False-colour palette
+
+| Zone | Roman | CSS colour |
+|------|-------|-----------|
+| 0    | 0     | #000000   |
+| 1    | I     | #1a1a2e   |
+| 2    | II    | #2d4a7a   |
+| 3    | III   | #3a7a5e   |
+| 4    | IV    | #5a9a4a   |
+| 5    | V     | #a0a060   |
+| 6    | VI    | #c8b464   |
+| 7    | VII   | #d4c890   |
+| 8    | VIII  | #e8dfc0   |
+| 9    | IX    | #f2ece0   |
+| 10   | X     | #ffffff   |
+
+### State additions
+
+```js
+let zoneMode = false;   // whether zone overlay is active
+```
+
+### drawZoneMap()
+
+Called whenever zone mode is active and any density parameter changes:
+
+1. For each pixel `p` compute `final(p)` (same as drawPreview but without the brightness-range rescale — raw density [0,1]).
+2. Look up the false-colour for `zone(p)`.
+3. Write the RGB into an ImageData object and `putImageData`.
+4. Call `drawZoneLegend()` and `drawZoneHistogram()`.
+5. Store the density array as `zoneDensities: Float32Array` for the click-eyedropper.
+
+### Zone legend
+
+A 22 × 20 px swatch row is drawn onto a `<div id="zoneLegend">` element sitting below the canvas inside `.bench`. Each swatch is a `<span>` with `background-color` from the palette and a 1-character text label (0–X in roman numeral glyphs).
+
+```html
+<div id="zoneLegend" class="zone-legend" hidden></div>
+```
+
+CSS:
+```css
+.zone-legend {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  width: 460px;
+  max-width: 100%;
+}
+.zone-swatch {
+  flex: 1;
+  height: 18px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-family: var(--mono);
+  color: rgba(0,0,0,.6);
+  cursor: default;
+}
+```
+
+### Zone histogram
+
+An `<div id="zoneHist" class="zone-hist" hidden>` element sits below the legend inside `.bench`.
+
+11 vertical bar elements, each labelled 0–X beneath, heights scaled by count percentage (max 100% bar height = 48px div). Bars share the false-colour palette.
+
+```css
+.zone-hist {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 52px;
+  width: 460px;
+  max-width: 100%;
+  padding-bottom: 14px; /* room for zone labels */
+  position: relative;
+}
+.zone-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  position: relative;
+}
+.zone-bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  min-height: 1px;
+}
+.zone-bar-label {
+  position: absolute;
+  bottom: 0;
+  font-size: 7px;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+```
+
+`updateZoneHistogram(densities)` recomputes the counts and sets each bar's inline height as a percentage of the tallest bar (so the tallest bar always fills the 38px bar area).
+
+### Zone tip
+
+A `<div id="zoneTip" class="zone-tip" hidden>` element below the histogram shows one of three tip strings. Updated by `updateZoneTip(hist)`:
+
+```js
+const dark = hist[0] + hist[1];
+const light = hist[9] + hist[10];
+const n = densities.length;
+if (dark / n > 0.30) { showDarkTip(); }
+else if (light / n > 0.30) { showLightTip(); }
+else { showBalancedTip(); }
+```
+
+```css
+.zone-tip {
+  font-size: .72rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 460px;
+  line-height: 1.4;
+}
+```
+
+### Zone eyedropper
+
+When zone mode is active a one-shot click listener is added to `#paper` for eyedropper queries (distinct from the test-strip one-shot listener). This listener:
+1. Maps click coordinates to pixel index `p`.
+2. Reads `zoneDensities[p]` and computes zone number.
+3. Calls `showZoneTooltip(zoneNum)`.
+
+`showZoneTooltip(z)` updates `#status` with the zone description string and stores the zone. The status reverts to the compose text on the next zone map redraw or when zone mode is deactivated.
+
+The listener is **persistent** (not one-shot) while zone mode is active; it is removed when zone mode is deactivated.
+
+### Zonas toggle button
+
+A `<button class="btn" id="zonas" aria-pressed="false">Zonas</button>` is placed in a new row directly below the dodge/burn tools row, visible only during compose state:
+
+```js
+$('#zonas').addEventListener('click', () => {
+  zoneMode = !zoneMode;
+  $('#zonas').setAttribute('aria-pressed', zoneMode);
+  if (zoneMode && rawGray) { drawZoneMap(); } else { drawPreview(); hideZoneUI(); }
+});
+```
+
+`setStep()` shows/hides and enables/disables `#zonas` per state (compose only, same as `#testStrip`).
+
+### Live updates
+
+Sliders that already call `drawPreview()` on input shall additionally call `drawZoneMap()` when `zoneMode` is true. Specifically:
+- `#exposure` input
+- `#contrast` input
+- `#softTime` / `#hardTime` inputs
+- After any `paintAt()` call
+
+This is done by wrapping the existing calls: `if (state==='compose' && rawGray) { zoneMode ? drawZoneMap() : drawPreview(); }`.
+
+### Help modal addition
+
+A new entry is added to the `extras` arrays of both `HELP_ES` and `HELP_EN`:
+
+```js
+// ES
+{ heading: 'Sistema de zonas',
+  text: 'El Sistema de Zonas de Ansel Adams divide la escala tonal en 11 zonas, del negro absoluto (zona 0) al blanco puro (zona X).\nActiva "Zonas" para ver qué zonas ocupará cada parte de la copia antes de exponerla.\nEl histograma de zonas muestra la distribución tonal; los consejos te sugieren ajustes si las sombras o las luces dominan.' }
+
+// EN
+{ heading: 'Zone System',
+  text: 'Ansel Adams\' Zone System divides the tonal scale into 11 zones, from absolute black (Zone 0) to pure white (Zone X).\nEnable "Zonas" to preview which zones each area of the print will fall into before you expose.\nThe zone histogram shows the tonal distribution; tips suggest adjustments if shadows or highlights dominate.' }
+```
+
 ## Film strip negative carrier
 
 ### Layout

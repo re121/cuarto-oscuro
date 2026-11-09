@@ -84,7 +84,15 @@ body.lit .tagline,body.lit label,body.lit .hint,body.lit .step,body.lit .lab,bod
 body.lit .help-dialog{background:#efe7df;border-color:#cbbdb2}
 body.lit .help-step p{color:#241a16}
 body.lit .help-extras-heading{color:#6b5a50;border-color:#cbbdb2}
-/* Film strip */
+/* Zone System */
+.zone-legend{display:flex;gap:2px;justify-content:center;width:460px;max-width:100%}
+.zone-swatch{flex:1;height:18px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-family:var(--mono);color:rgba(0,0,0,.55);cursor:default;user-select:none}
+.zone-hist{display:flex;gap:2px;align-items:flex-end;height:52px;width:460px;max-width:100%;padding-bottom:14px;position:relative}
+.zone-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;position:relative}
+.zone-bar{width:100%;border-radius:2px 2px 0 0;min-height:1px}
+.zone-bar-label{position:absolute;bottom:0;font-size:7px;font-family:var(--mono);color:var(--muted)}
+.zone-tip{font-size:.72rem;color:var(--muted);text-align:center;max-width:460px;line-height:1.4;min-height:1.2em}
+
 .outer-grid{display:grid;grid-template-columns:68px 1fr;gap:16px;align-items:start}
 @media(max-width:780px){.outer-grid{grid-template-columns:1fr}}
 .filmstrip{width:68px;background:#3d1f0a;border-radius:6px;display:flex;flex-direction:column;align-items:center;gap:0;padding:6px 0;overflow-y:auto;max-height:calc(560px + 32px);position:sticky;top:16px;scrollbar-width:thin;scrollbar-color:#6b2d0f #3d1f0a}
@@ -120,6 +128,9 @@ body.lit .help-extras-heading{color:#6b5a50;border-color:#cbbdb2}
         <canvas class="paper" id="paper" width="460" height="560"></canvas>
         <div class="liquid"></div>
       </div>
+      <div id="zoneLegend" class="zone-legend" hidden></div>
+      <div id="zoneHist" class="zone-hist" hidden></div>
+      <div id="zoneTip" class="zone-tip" hidden></div>
       <div class="status" id="status">Coloca el negativo y ajusta la exposición.</div>
     </div>
     <aside class="rail">
@@ -153,6 +164,7 @@ body.lit .help-extras-heading{color:#6b5a50;border-color:#cbbdb2}
         </div>
         <div class="row" style="margin-top:8px"><label style="margin:0">Tamaño</label><input type="range" id="brush" min="20" max="120" value="60"></div>
       </div>
+      <div><button class="btn" id="zonas" aria-pressed="false" disabled>Zonas</button></div>
       <div>
         <label>Virado (al fijar)</label>
         <div class="segs">
@@ -252,6 +264,8 @@ function drawMaskOverlay(){
 const STRIP_TIMES=[3,6,9,12,15];
 function drawTestStrip(){
   if(!rawGray)return;
+  // Deactivate zone mode if active
+  if(zoneMode){zoneMode=false;$('#zonas').setAttribute('aria-pressed','false');paper.removeEventListener('click',onZoneClick);hideZoneUI();}
   const bw=Math.floor(W/STRIP_TIMES.length);
   const im=ctx.createImageData(W,H);
   for(let bi=0;bi<STRIP_TIMES.length;bi++){
@@ -325,7 +339,7 @@ function paintAt(x,y){ if(tool==='none'||!rawGray)return; const r=brush/2,delta=
   for(let yy=Math.max(0,y-r);yy<Math.min(H,y+r);yy++)for(let xx=Math.max(0,x-r);xx<Math.min(W,x+r);xx++){
     const dx=xx-x,dy=yy-y,dist=Math.sqrt(dx*dx+dy*dy);
     if(dist<r){const fall=1-dist/r,p=yy*W+xx;mask[p]=Math.min(1.8,Math.max(0.45,mask[p]+delta*fall));}}
-  if(state==='compose')drawPreview(); }
+  if(state==='compose'){if(zoneMode)drawZoneMap();else drawPreview();} }
 function evtXY(e){const rect=paper.getBoundingClientRect();const cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left,cy=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
   return [Math.round(cx*W/rect.width),Math.round(cy*H/rect.height)];}
 paper.addEventListener('pointerdown',e=>{ensureAudio();if(state==='compose'){painting=true;const[x,y]=evtXY(e);paintAt(x,y);}});
@@ -343,6 +357,10 @@ function setStep(){
   $('#expose').disabled=state!=='compose'; $('#develop').disabled=state!=='latent';
   $('#fix').disabled=!(state==='developing'||state==='devdone'); $('#download').disabled=state!=='fixed';
   $('#testStrip').disabled=!(state==='compose'&&rawGray!==null);
+  // Zone mode only active in compose state
+  const canZone=state==='compose'&&rawGray!==null;
+  $('#zonas').disabled=!canZone;
+  if(!canZone&&zoneMode){zoneMode=false;$('#zonas').setAttribute('aria-pressed','false');hideZoneUI();}
 }
 function expose(){
   if(state!=='compose'||!rawGray)return;
@@ -422,16 +440,18 @@ function applyTone(){
 }
 function fix(){ if(state!=='devdone'&&state!=='developing')return; state='fixed';applyTone();waterStop();ensureAudio();blip(90,0.12,0.12,'sine');
   $('#tray').classList.remove('wet');setStep();$('#status').textContent='Fijada. Enciende la luz o descarga la copia.';}
-function reset(){ state='compose';if(rawGray){mask=new Float32Array(W*H).fill(1);drawPreview();}
+function reset(){ state='compose';
+  if(zoneMode){zoneMode=false;$('#zonas').setAttribute('aria-pressed','false');paper.removeEventListener('click',onZoneClick);hideZoneUI();}
+  if(rawGray){mask=new Float32Array(W*H).fill(1);drawPreview();}
   $('#tray').classList.remove('wet');$('#timer').textContent='';setStep();}
 function download(){ try{ paper.toBlob(b=>{ if(!b)return; const a=document.createElement('a');
   a.href=URL.createObjectURL(b);a.download='cuarto-oscuro.png';document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),2000); }); }catch(e){ $('#status').textContent='La descarga no está disponible aquí.'; } }
 
-$('#exposure').addEventListener('input',e=>{exposure=+e.target.value;$('#expVal').textContent=exposure;});
-$('#contrast').addEventListener('input',e=>{grade=+e.target.value;$('#conVal').textContent=grade;if(state==='compose'&&rawGray)drawPreview();});
-$('#softTime').addEventListener('input',e=>{softTime=+e.target.value;$('#softVal').textContent=softTime;if(state==='compose'&&rawGray)drawPreview();});
-$('#hardTime').addEventListener('input',e=>{hardTime=+e.target.value;$('#hardVal').textContent=hardTime;if(state==='compose'&&rawGray)drawPreview();});
+$('#exposure').addEventListener('input',e=>{exposure=+e.target.value;$('#expVal').textContent=exposure;if(state==='compose'&&rawGray){if(zoneMode)drawZoneMap();else drawPreview();}});
+$('#contrast').addEventListener('input',e=>{grade=+e.target.value;$('#conVal').textContent=grade;if(state==='compose'&&rawGray){if(zoneMode)drawZoneMap();else drawPreview();}});
+$('#softTime').addEventListener('input',e=>{softTime=+e.target.value;$('#softVal').textContent=softTime;if(state==='compose'&&rawGray){if(zoneMode)drawZoneMap();else drawPreview();}});
+$('#hardTime').addEventListener('input',e=>{hardTime=+e.target.value;$('#hardVal').textContent=hardTime;if(state==='compose'&&rawGray){if(zoneMode)drawZoneMap();else drawPreview();}});
 $('#splitToggle').addEventListener('click',()=>{
   splitGrade=!splitGrade;
   $('#splitToggle').setAttribute('aria-pressed',splitGrade);
@@ -497,6 +517,8 @@ function selectFrame(idx){
   frames.forEach(f=>f.el.classList.remove('active'));
   frames[idx].el.classList.add('active');
   activeFrame=idx;
+  // Deactivate zone mode when switching frames
+  if(zoneMode){zoneMode=false;$('#zonas').setAttribute('aria-pressed','false');paper.removeEventListener('click',onZoneClick);hideZoneUI();}
   // Use pre-decoded rawData directly — no second network/decode round-trip
   const fr=frames[idx];
   rawGray=fr.rawData;
@@ -534,6 +556,139 @@ function decodeAndAdd(src){
   img.src=src;
 }
 
+// ---------- zone system ----------
+const ZONE_PALETTE=['#000000','#1a1a2e','#2d4a7a','#3a7a5e','#5a9a4a','#a0a060','#c8b464','#d4c890','#e8dfc0','#f2ece0','#ffffff'];
+const ZONE_ROMAN=['0','I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const ZONE_ES_DESC=['negro absoluto — sin detalle','casi negro — sin textura','negros con textura apenas visible','sombras con textura','sombras oscuras con detalle','gris medio — 18% de reflectancia','luces suaves con textura','luces brillantes con detalle','luces casi sin textura','blanco puro con textura apenas visible','blanco absoluto — sin detalle'];
+const ZONE_EN_DESC=['absolute black — no detail','near black — no texture','blacks with barely visible texture','shadows with texture','dark shadows with detail','middle grey — 18% reflectance','soft lights with texture','bright lights with detail','lights with almost no texture','pure white with barely visible texture','absolute white — no detail'];
+
+let zoneMode=false, zoneDensities=null;
+
+function computeZoneDensities(){
+  const d=new Float32Array(W*H);
+  if(splitGrade){
+    const eNs=softTime/9,eNh=hardTime/9;
+    for(let p=0;p<W*H;p++){
+      const e=eNs*mask[p],eh=eNh*mask[p];
+      d[p]=Math.min(1,Math.pow(curveSoft(rawGray[p]),Math.max(0.001,e))*Math.pow(curveHard(rawGray[p]),Math.max(0.001,eh)));
+    }
+  } else {
+    const eN=exposure/9;
+    for(let p=0;p<W*H;p++){
+      d[p]=Math.pow(curve(rawGray[p]),Math.max(0.001,eN*mask[p]));
+    }
+  }
+  return d;
+}
+
+function densityToZone(d){return Math.min(10,Math.max(0,Math.floor(d*11)));}
+
+function drawZoneLegend(){
+  const el=$('#zoneLegend');
+  if(!el.children.length){
+    ZONE_ROMAN.forEach((r,i)=>{
+      const s=document.createElement('span');
+      s.className='zone-swatch';
+      s.style.background=ZONE_PALETTE[i];
+      s.style.color=(i>=6)?'rgba(0,0,0,.55)':'rgba(255,255,255,.75)';
+      s.textContent=r;
+      el.appendChild(s);
+    });
+  }
+  el.hidden=false;
+}
+
+function updateZoneHistogram(densities){
+  const hist=new Array(11).fill(0);
+  for(let i=0;i<densities.length;i++)hist[densityToZone(densities[i])]++;
+  const maxCount=Math.max(1,...hist);
+  const el=$('#zoneHist');
+  if(!el.children.length){
+    ZONE_ROMAN.forEach((_,i)=>{
+      const wrap=document.createElement('div');wrap.className='zone-bar-wrap';
+      const bar=document.createElement('div');bar.className='zone-bar';bar.style.background=ZONE_PALETTE[i];
+      const lbl=document.createElement('span');lbl.className='zone-bar-label';lbl.textContent=ZONE_ROMAN[i];
+      wrap.appendChild(bar);wrap.appendChild(lbl);el.appendChild(wrap);
+    });
+  }
+  const barH=38; // px available for bars
+  const wraps=el.querySelectorAll('.zone-bar-wrap');
+  hist.forEach((c,i)=>{
+    const px=Math.max(1,Math.round(c/maxCount*barH));
+    wraps[i].querySelector('.zone-bar').style.height=px+'px';
+  });
+  el.hidden=false;
+  return hist;
+}
+
+function updateZoneTip(hist,n){
+  const dark=(hist[0]+hist[1])/n;
+  const light=(hist[9]+hist[10])/n;
+  const el=$('#zoneTip');
+  const isEN=(helpLang==='en');
+  if(dark>0.30){
+    el.textContent=isEN?'Shadows without detail: increase exposure or lower the grade.':'Sombras sin detalle: aumenta la exposición o baja el grado.';
+  } else if(light>0.30){
+    el.textContent=isEN?'Burned highlights: dodge the bright areas or lower the grade.':'Luces quemadas: reserva las altas luces o baja el grado.';
+  } else {
+    el.textContent=isEN?'Balanced distribution: good tonal range.':'Distribución equilibrada: buen rango tonal.';
+  }
+  el.hidden=false;
+}
+
+function hideZoneUI(){
+  $('#zoneLegend').hidden=true;
+  $('#zoneHist').hidden=true;
+  $('#zoneTip').hidden=true;
+}
+
+function drawZoneMap(){
+  if(!rawGray)return;
+  zoneDensities=computeZoneDensities();
+  const im=ctx.createImageData(W,H);
+  for(let p=0,i=0;p<W*H;p++,i+=4){
+    const z=densityToZone(zoneDensities[p]);
+    const c=ZONE_PALETTE[z];
+    im.data[i]=parseInt(c.slice(1,3),16);
+    im.data[i+1]=parseInt(c.slice(3,5),16);
+    im.data[i+2]=parseInt(c.slice(5,7),16);
+    im.data[i+3]=255;
+  }
+  ctx.putImageData(im,0,0);
+  drawZoneLegend();
+  const hist=updateZoneHistogram(zoneDensities);
+  updateZoneTip(hist,W*H);
+}
+
+// Zone eyedropper click listener
+function onZoneClick(e){
+  if(!zoneMode||!zoneDensities)return;
+  const rect=paper.getBoundingClientRect();
+  const cx=Math.round(((e.clientX-rect.left)*W/rect.width));
+  const cy=Math.round(((e.clientY-rect.top)*H/rect.height));
+  const p=Math.min(W*H-1,Math.max(0,cy*W+cx));
+  const z=densityToZone(zoneDensities[p]);
+  const isEN=(helpLang==='en');
+  const desc=(isEN?ZONE_EN_DESC:ZONE_ES_DESC)[z];
+  const prefix=isEN?'Zone':'Zona';
+  $('#status').textContent=prefix+' '+ZONE_ROMAN[z]+' — '+desc;
+}
+
+$('#zonas').addEventListener('click',()=>{
+  if(!rawGray)return;
+  zoneMode=!zoneMode;
+  $('#zonas').setAttribute('aria-pressed',zoneMode);
+  if(zoneMode){
+    drawZoneMap();
+    paper.addEventListener('click',onZoneClick);
+  } else {
+    paper.removeEventListener('click',onZoneClick);
+    hideZoneUI();
+    drawPreview();
+    setStep(); // restore status text
+  }
+});
+
 // ---------- help modal ----------
 const HELP_ES={
   title:'¿Cómo funciona?',langToggle:'English',
@@ -554,6 +709,8 @@ const HELP_ES={
      text:'Pulsa "Tira de prueba" antes de exponer. Verás cinco bandas con tiempos de 3, 6, 9, 12 y 15 s.\nHaz clic en la banda que más te guste para usar ese tiempo.'},
     {heading:'Gradación dividida',
      text:'Activa "Gradación dividida" para controlar las luces y las sombras por separado.\nEl filtro amarillo (suave) controla las luces; el magenta (duro) construye las sombras.'},
+    {heading:'Sistema de zonas',
+     text:'El Sistema de Zonas de Ansel Adams divide la escala tonal en 11 zonas, del negro absoluto (zona 0) al blanco puro (zona X).\nActiva "Zonas" para ver qué zonas ocupará cada parte de la copia antes de exponerla.\nEl histograma muestra la distribución tonal; los consejos te sugieren ajustes si las sombras o las luces dominan.\nHaz clic en un punto del mapa para ver a qué zona pertenece.'},
   ],
 };
 const HELP_EN={
@@ -575,6 +732,8 @@ const HELP_EN={
      text:'Click "Tira de prueba" before exposing. Five bands are shown at 3, 6, 9, 12 and 15 s.\nClick the band you like to set that exposure time.'},
     {heading:'Split-grade printing',
      text:'Enable "Gradación dividida" to control highlights and shadows independently.\nThe yellow (soft) filter controls highlights; the magenta (hard) filter builds shadows.'},
+    {heading:'Zone System',
+     text:'Ansel Adams\' Zone System divides the tonal scale into 11 zones, from absolute black (Zone 0) to pure white (Zone X).\nEnable "Zonas" to preview which zones each part of the print will fall into before you expose.\nThe histogram shows the tonal distribution; tips suggest adjustments if shadows or highlights dominate.\nClick any point on the map to see which zone it belongs to.'},
   ],
 };
 let helpLang='es';

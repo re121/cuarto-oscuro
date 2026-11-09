@@ -82,6 +82,34 @@
 51. WHEN the state transitions from exposing to latent (after the enlarger countdown ends), THE SYSTEM SHALL update the status line to read "La imagen está latente: pulsa Revelar." in Spanish (or the English equivalent "Latent image: press Develop." if the UI is showing English — but since only the modal has a language toggle, the status line hint SHALL always appear in Spanish).
 52. THE SYSTEM SHALL preserve all existing features unchanged; the modal SHALL contain no external URLs or external resources.
 
+## Zone System overlay
+
+67. WHEN the user clicks the "Zonas" toggle button in compose state, THE SYSTEM SHALL overlay the compose preview canvas with a false-colour zone map: each pixel's predicted print density (computed with the same density model as develop — same exposure, grade or split-grade times, and dodge/burn mask) SHALL be quantised into one of 11 zones (0–X) and coloured with a distinct false-colour palette.
+68. WHEN the "Zonas" toggle is active and any of the exposure slider, contrast slider, split-grade time sliders, or dodge/burn mask changes, THE SYSTEM SHALL recompute and repaint the zone map immediately.
+69. WHEN the user deactivates the "Zonas" toggle, THE SYSTEM SHALL restore the normal compose preview.
+70. THE SYSTEM SHALL define the 11 zones (0 through X in Roman numerals) with the following false-colour palette: Zone 0 → #000000, Zone I → #1a1a1a (very dark blue-grey), Zone II → #2d4a7a, Zone III → #3a7a5e, Zone IV → #5a9a4a, Zone V → #a0a060, Zone VI → #c8b464, Zone VII → #d4c890, Zone VIII → #e8dfc0, Zone IX → #f2ece0, Zone X → #ffffff; boundaries evenly spaced across the [0,1] density range (each zone covers 1/11 of the range).
+71. THE SYSTEM SHALL display a compact inline legend below the zone map (or below the canvas) showing all 11 zone swatches labelled 0 through X, styled to fit within the canvas width without scrolling.
+72. WHEN the user activates the zone map, THE SYSTEM SHALL display a zone histogram bar chart of 11 vertical columns (zones 0 to X) below the legend, showing the percentage of image pixels in each zone, updated live whenever the density model changes.
+73. WHEN the zone map is active and the user clicks a pixel on the canvas, THE SYSTEM SHALL display a tooltip (or inline status message) identifying the zone of the clicked pixel and its standard Ansel Adams description in Spanish (e.g. "Zona III — sombras con textura") or English when the help-modal language is set to EN; the tooltip SHALL dismiss on the next click or when the zone toggle is deactivated.
+74. THE SYSTEM SHALL define the following Adams descriptions for each zone, in both Spanish and English:
+    Zone 0: ES "negro absoluto — sin detalle" / EN "absolute black — no detail";
+    Zone I: ES "casi negro — sin textura" / EN "near black — no texture";
+    Zone II: ES "negros con textura apenas visible" / EN "blacks with barely visible texture";
+    Zone III: ES "sombras con textura" / EN "shadows with texture";
+    Zone IV: ES "sombras oscuras con detalle" / EN "dark shadows with detail";
+    Zone V: ES "gris medio — 18% de reflectancia" / EN "middle grey — 18% reflectance";
+    Zone VI: ES "luces suaves con textura" / EN "soft lights with texture";
+    Zone VII: ES "luces brillantes con detalle" / EN "bright lights with detail";
+    Zone VIII: ES "luces casi sin textura" / EN "lights with almost no texture";
+    Zone IX: ES "blanco puro con textura apenas visible" / EN "pure white with barely visible texture";
+    Zone X: ES "blanco absoluto — sin detalle" / EN "absolute white — no detail".
+75. WHEN the zone histogram shows that more than 30% of pixels fall in zones 0–I combined, THE SYSTEM SHALL display a plain-language tip: ES "Sombras sin detalle: aumenta la exposición o baja el grado." / EN "Shadows without detail: increase exposure or lower the grade."
+76. WHEN the zone histogram shows that more than 30% of pixels fall in zones IX–X combined, THE SYSTEM SHALL display a plain-language tip: ES "Luces quemadas: reserva las altas luces o baja el grado." / EN "Burned highlights: dodge the bright areas or lower the grade."
+77. WHEN zones 0–I combined and zones IX–X combined are each below 30%, THE SYSTEM SHALL display a positive tip: ES "Distribución equilibrada: buen rango tonal." / EN "Balanced distribution: good tonal range."
+78. THE SYSTEM SHALL show the "Zonas" toggle only in compose state; the button SHALL be disabled (and the overlay, histogram, and tooltip hidden) in all other workflow states.
+79. THE SYSTEM SHALL add a "Sistema de zonas" section to both the Spanish and English content objects (HELP_ES / HELP_EN extras) in the help modal, explaining the Zone System in two to four plain sentences accessible to beginners.
+80. THE SYSTEM SHALL keep all existing features (compose preview, dodge/burn, split-grade, test strip, toning, grain, sound, safelight, export, film strip, state machine) unchanged when the zone overlay is off.
+
 ## Film strip negative carrier
 53. WHEN the page loads, THE SYSTEM SHALL display a vertical 35mm film strip panel to the left of the enlarger bench, containing at least one frame: the built-in default negative as frame 1.
 54. WHEN the user selects one or more image files via the "Cargar imagen" file input (which SHALL accept `multiple` files), THE SYSTEM SHALL add one thumbnail frame per file to the film strip, assigning sequential frame labels ("1A", "2A", "3A", …) and immediately select the first newly-added frame.

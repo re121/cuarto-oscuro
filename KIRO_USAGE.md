@@ -71,7 +71,26 @@ switches to English. Built with Kiro CLI using spec-driven development:
    - Latent status hint updated to "La imagen está latente: pulsa Revelar."
 6. All tasks checked off in `tasks.md`. Committed.
 
-## Feature built with Kiro: film strip negative carrier
+## Feature built with Kiro: Zone System overlay
+Ansel Adams' Zone System reading overlaid on the compose preview. The zone map colours each pixel by its predicted print density quantised into 11 zones (0 = absolute black → X = absolute white), using the same density model as the develop step (exposure, grade or split-grade, dodge/burn mask). Built end-to-end with Kiro CLI using spec-driven development:
+1. Kiro added EARS requirements 67–80 to `requirements.md`.
+2. Kiro wrote the "Zone System overlay" section of `design.md` (density-to-zone mapping, false-colour palette, legend, histogram, tip, eyedropper, live update wiring).
+3. Kiro added the linked tasks to `tasks.md`.
+4. Kiro exported `densityToZone()` and `zoneHistogram()` from `src/develop.js` and added 11 new Node tests in `tests/develop.test.js` (all 17 tests pass).
+5. Kiro implemented the feature in `src/index.html`:
+   - CSS for `.zone-legend`, `.zone-swatch`, `.zone-hist`, `.zone-bar-wrap`, `.zone-bar`, `.zone-bar-label`, `.zone-tip`.
+   - `<div id="zoneLegend">`, `<div id="zoneHist">`, `<div id="zoneTip">` below the canvas; `<button id="zonas">` in the rail below the dodge/burn tools.
+   - `ZONE_PALETTE`, `ZONE_ROMAN`, `ZONE_ES_DESC`, `ZONE_EN_DESC` constants.
+   - `computeZoneDensities()`, `drawZoneMap()`, `drawZoneLegend()`, `updateZoneHistogram()`, `updateZoneTip()`, `hideZoneUI()` functions.
+   - Persistent `onZoneClick` eyedropper listener (active while zone mode is on).
+   - `setStep()` updated: enables Zonas only in compose state, auto-deactivates zone mode on state transitions.
+   - All density-changing sliders (`#exposure`, `#contrast`, `#softTime`, `#hardTime`) and `paintAt()` call `drawZoneMap()` instead of `drawPreview()` when zone mode is active.
+   - Zone mode auto-deactivates on `reset()`, `selectFrame()`, and `drawTestStrip()`.
+   - "Sistema de zonas" / "Zone System" section added to `HELP_ES.extras` and `HELP_EN.extras`.
+   - All existing features unchanged.
+6. All tasks checked off in `tasks.md`. Committed.
+
+
 A vertical 35mm film strip column sits to the left of the enlarger (horizontal
 above it on narrow screens). Each loaded image appears as an inverted negative
 thumbnail on a dark orange-brown film base with sprocket holes and a yellow frame
